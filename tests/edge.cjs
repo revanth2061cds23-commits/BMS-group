@@ -54,7 +54,7 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     await p.goto(B + '/seats'); await p.click('[role=switch]')
     for (const s of ['F5', 'F6']) await p.click(`[aria-label="Seat ${s} available"]`)
     await p.click('text=Add friends'); await p.click('button:has-text("Review")')
-    ok('E17 hold shortened', await has(p, 'Shortened: holds must end 30 minutes before the show'))
+    ok('E17 hold shortened', await has(p, 'it must end 30 min before the show'))
     await fac(p); await p.click('button:has-text("35 m")'); await closeFac(p)
     await p.goto(B + '/seats'); await p.waitForTimeout(200)
     ok('E17 group disabled', await has(p, 'Unavailable: the show starts too soon'))

@@ -564,48 +564,119 @@ function SeatRow({ s, seatId, me, onPass }: { s: Session; seatId: string; me: Me
 
 export function inviteText(s: Session) {
   const h = host(s)
-  const seats = s.seats.map((x) => `${x.id} ${memberById(s, x.memberId) ? firstName(memberById(s, x.memberId)!.name) : '(open)'}`).join(', ')
-  const when = `${fmtDate(s.show.startsAt)}, ${fmtTime(s.show.startsAt)}`
+  const head = `🎬 *${s.show.movie}*\n📅 ${fmtDate(s.show.startsAt)} · ${fmtTime(s.show.startsAt)}\n📍 ${s.show.cinema}\n`
   return s.variant === 'A'
-    ? `🎬 ${s.show.movie} · ${when} at ${s.show.cinema}\n${firstName(h.name)} is holding seats for us: ${seats}.\nPay ${inr(s.show.pricePerSeat)} for your seat in the next ${s.holdMinutes} min or it may be released 👇\n${sessionLink(s.id)}`
-    : `🎬 ${s.show.movie} · ${when} at ${s.show.cinema}\n${firstName(h.name)} booked seats for all of us: ${seats}.\nPay back ${inr(s.show.pricePerSeat)} here 👇\n${sessionLink(s.id)}`
+    ? `${head}🎟️ ${firstName(h.name)} is holding your seat. Pay ${inr(s.show.pricePerSeat)} within ${s.holdMinutes} min:\n${sessionLink(s.id)}`
+    : `${head}🎟️ ${firstName(h.name)} booked your seat. Pay back ${inr(s.show.pricePerSeat)} here:\n${sessionLink(s.id)}`
+}
+
+const WaIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 01-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001.1 2.7 11.8 11.8 0 004.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 001.8-1.2 2.2 2.2 0 00.1-1.3c0-.1-.2-.2-.5-.3z" /></svg>
+)
+const CopyIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3" /><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2" /></svg>
+)
+
+/** The invite as friends will picture it: a small ticket with the poster, date and everyone's seats. */
+export function InviteCard({ s }: { s: Session }) {
+  const h = host(s)
+  return (
+    <div className="rounded-3xl overflow-hidden bg-white ring-1 ring-line shadow-[0_8px_24px_rgba(34,37,57,.08)]">
+      <div className="p-4 flex gap-3 text-white bg-[linear-gradient(135deg,#2A2150_0%,#7A2E6B_55%,#F84464_100%)]">
+        <Poster small />
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-white/75">{firstName(h.name)} invites you</div>
+          <div className="text-[18px] font-bold leading-tight mt-0.5 truncate">{s.show.movie}</div>
+          <div className="text-[12px] text-white/80">{s.show.certificate} · {s.show.language}</div>
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+            {fmtDate(s.show.startsAt)} · {fmtTime(s.show.startsAt)}
+          </div>
+        </div>
+      </div>
+      <div className="relative">
+        <span className="absolute -left-3 -top-3 w-6 h-6 rounded-full bg-white" /><span className="absolute -right-3 -top-3 w-6 h-6 rounded-full bg-white" />
+      </div>
+      <div className="p-4 pt-3">
+        <div className="text-[12px] text-sub flex items-center gap-1.5 mb-3">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 21s7-6.1 7-11.5A7 7 0 005 9.5C5 14.9 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+          <span className="truncate">{s.show.cinema} · {s.show.screen}</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {s.seats.slice().sort((a, b) => seatSort(a.id, b.id)).map((x) => {
+            const m = memberById(s, x.memberId)
+            return (
+              <span key={x.id} className={`h-7 pl-1 pr-2.5 rounded-full flex items-center gap-1.5 text-[12px] ${m?.isHost ? 'bg-ok-soft text-ok-ink' : 'bg-surface'}`}>
+                <span className={`h-5 px-1.5 rounded-full grid place-items-center text-[10px] font-bold ${m?.isHost ? 'bg-ok text-white' : m ? 'bg-amber text-ink' : 'border border-dashed border-amber text-amber-ink'}`}>{x.id}</span>
+                {m ? firstName(m.name) : 'Open'}
+              </span>
+            )
+          })}
+        </div>
+        <div className="mt-4 flex items-center justify-between rounded-2xl bg-brand-soft px-3 py-2.5">
+          <div>
+            <div className="text-[11px] text-sub">{s.variant === 'A' ? 'Each friend pays' : 'Each friend pays back'}</div>
+            <div className="text-[18px] font-bold text-ink leading-tight">{inr(s.show.pricePerSeat)}</div>
+          </div>
+          <div className="text-[12px] font-semibold text-brand flex items-center gap-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2" /></svg>
+            {s.variant === 'A' ? `Held for ${s.holdMinutes} min` : `Within ${s.holdMinutes} min`}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function ShareSheet({ s, open, onClose }: { s: Session; open: boolean; onClose(): void }) {
   const { act, toast } = useStore()
+  const [personal, setPersonal] = useState(false)
   const text = inviteText(s)
+  const friends = s.members.filter((m) => !m.isHost && seatOf(s, m.id))
   const logShare = (channel: string, extra: Record<string, unknown> = {}) => act((d, n) => { log(d, n, d.sessions[s.id], host(s).name, 'link_shared', { channel, ...extra }) })
   const copy = async (t: string) => {
     try { await navigator.clipboard.writeText(t); toast('Link copied', 'success') } catch { toast(t, 'info') }
   }
   return (
     <Sheet open={open} onClose={onClose} title="Invite your friends">
-      <div className="text-[12px] text-sub mb-2">Message preview</div>
-      <div className="bg-[#e7ffdb] rounded-2xl rounded-tr-none p-3 text-[13px] whitespace-pre-wrap break-words mb-4 shadow-sm">{text}</div>
-      <div className="grid gap-2">
-        <a
-          href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"
-          onClick={() => logShare('whatsapp')}
-          className="h-11 rounded-2xl bg-[#25D366] text-white text-[14px] font-medium grid place-items-center"
-        >Share on WhatsApp</a>
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" onClick={() => { copy(sessionLink(s.id)); logShare('copy') }}>Copy link</Button>
-          <Button variant="outline" onClick={async () => {
-            if (navigator.share) { try { await navigator.share({ text }); logShare('native') } catch { /* cancelled */ } }
-            else { copy(text); logShare('copy_message') }
-          }}>More options</Button>
-        </div>
+      <InviteCard s={s} />
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"
+        onClick={() => logShare('whatsapp')}
+        className="mt-4 h-12 rounded-2xl bg-[#25D366] text-white text-[15px] font-semibold flex items-center justify-center gap-2 shadow-[0_6px_16px_rgba(37,211,102,.3)]"
+      ><WaIcon /> Share on WhatsApp</a>
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <Button variant="outline" onClick={() => { copy(sessionLink(s.id)); logShare('copy') }}><span className="inline-flex items-center gap-1.5"><CopyIcon /> Copy link</span></Button>
+        <Button variant="outline" onClick={async () => {
+          if (navigator.share) { try { await navigator.share({ text }); logShare('native') } catch { /* cancelled */ } }
+          else { copy(text); logShare('copy_message') }
+        }}>More options</Button>
       </div>
-      <div className="mt-5 text-[12px] text-sub mb-1">Or send each friend their own link (opens with their seat)</div>
-      {s.members.filter((m) => !m.isHost && seatOf(s, m.id)).map((m) => (
-        <div key={m.id} className="flex items-center gap-2 py-2 border-t border-line">
-          <Avatar name={m.name} initials={m.initials} size={26} />
-          <div className="flex-1 text-[13px]">{firstName(m.name)} · {seatOf(s, m.id)?.id}</div>
-          <a className="text-[12px] text-[#128C7E] font-medium px-2" target="_blank" rel="noreferrer" onClick={() => logShare('whatsapp_personal', { memberId: m.id })}
-            href={`https://wa.me/91${m.phone}?text=${encodeURIComponent(`${firstName(m.name)}, ${seatOf(s, m.id)?.id} is ${s.variant === 'A' ? 'held' : 'booked'} for you 🎬 ${sessionLink(s.id, m.id)}`)}`}>WhatsApp</a>
-          <button className="text-[12px] text-brand font-medium px-2" onClick={() => { copy(sessionLink(s.id, m.id)); logShare('copy_personal', { memberId: m.id }) }}>Copy</button>
+      {friends.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-surface">
+          <button className="w-full h-12 px-4 flex items-center justify-between text-[13px] font-semibold" onClick={() => setPersonal(!personal)} aria-expanded={personal}>
+            <span className="flex items-center gap-2">
+              <span className="flex -space-x-1.5">{friends.slice(0, 4).map((m) => <Avatar key={m.id} name={m.name} initials={m.initials} size={22} ring="#F2F3F7" />)}</span>
+              Send personal links
+            </span>
+            <span className={`text-sub transition ${personal ? 'rotate-180' : ''}`}>⌄</span>
+          </button>
+          {personal && (
+            <div className="px-2 pb-2">
+              {friends.map((m) => (
+                <div key={m.id} className="flex items-center gap-2.5 px-2 py-2 bg-white rounded-2xl mb-1.5">
+                  <Avatar name={m.name} initials={m.initials} size={32} />
+                  <div className="flex-1 min-w-0 text-[13px]"><span className="font-semibold">{firstName(m.name)}</span> <span className="text-sub">· {seatOf(s, m.id)?.id}</span></div>
+                  <a className="w-9 h-9 rounded-full bg-[#E8F9EF] text-[#128C7E] grid place-items-center" aria-label={`WhatsApp ${firstName(m.name)}`} target="_blank" rel="noreferrer" onClick={() => logShare('whatsapp_personal', { memberId: m.id })}
+                    href={`https://wa.me/91${m.phone}?text=${encodeURIComponent(`${firstName(m.name)}, seat ${seatOf(s, m.id)?.id} is ${s.variant === 'A' ? 'held' : 'booked'} for you 🎬 ${s.show.movie}, ${fmtDate(s.show.startsAt)} · ${fmtTime(s.show.startsAt)}\n${sessionLink(s.id, m.id)}`)}`}><WaIcon /></a>
+                  <button className="w-9 h-9 rounded-full bg-brand-soft text-brand grid place-items-center" aria-label={`Copy ${firstName(m.name)}'s link`} onClick={() => { copy(sessionLink(s.id, m.id)); logShare('copy_personal', { memberId: m.id }) }}><CopyIcon /></button>
+                </div>
+              ))}
+              <div className="text-[11px] text-sub px-2 pt-1">Opens with their name and seat already filled in.</div>
+            </div>
+          )}
         </div>
-      ))}
+      )}
     </Sheet>
   )
 }

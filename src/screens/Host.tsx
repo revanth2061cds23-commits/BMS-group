@@ -581,31 +581,54 @@ export function Review() {
       </div>
       <Divider />
       <div className="sect p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-11 h-11 rounded-full bg-surface grid place-items-center text-[13px] font-semibold tabular-nums">{hold ?? '—'}<span className="sr-only">minutes</span></div>
-          <div className="text-[13px]">
-            <div className="font-semibold">{variant === 'A' ? `Seats held for ${hold}:00` : `${hold}:00 to pay you back`}</div>
-            <div className="text-sub">{variant === 'A' ? 'Starts when you pay. Friends see the same timer.' : 'All seats are confirmed as soon as you pay.'}</div>
-            {hold !== null && hold < db.config.holdMinutes && <div className="text-amber-ink text-[12px] mt-0.5">Shortened: holds must end 30 minutes before the show.</div>}
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[15px] font-bold">How it works</div>
+          <div className="h-8 px-3 rounded-full bg-amber-soft text-amber-ink text-[12px] font-bold flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg>
+            {hold ?? '—'}:00 {variant === 'A' ? 'hold' : 'to pay back'}
           </div>
         </div>
-        <ul className="text-[12px] text-sub space-y-1.5 list-disc pl-4">
-          {variant === 'A' ? (
-            <>
-              <li>Your seat is confirmed now. Each friend's seat is confirmed the moment they pay.</li>
-              <li>A paid seat is never lost because someone else didn't pay.</li>
-              <li>When the timer ends you choose for each unpaid seat: pay for it, pass it on, or release it. You can extend once by 10 minutes.</li>
-              <li>If you don't decide within 2 minutes, unpaid seats are released.</li>
-            </>
-          ) : (
-            <>
-              <li>You pay for every seat now, so nobody can lose their seat.</li>
-              <li>Friends pay you back through the session. You'll see who has paid and who still owes.</li>
-              <li>Money isn't refunded to you automatically if someone doesn't pay. You can keep sending reminders.</li>
-            </>
-          )}
-          <li>One active group session at a time. You can move unpaid seats; paid seats move only if that friend agrees.</li>
-        </ul>
+        <ol className="relative">
+          {(variant === 'A'
+            ? [
+                ['card', `You pay ${inr(amount)}`, 'Your seat is confirmed'],
+                ['people', 'Friends pay their share', 'Each seat confirmed instantly'],
+                ['clock', `When ${hold}:00 ends`, 'Pay, pass on or release unpaid seats'],
+              ]
+            : [
+                ['card', `You pay ${inr(amount)}`, 'Every seat is confirmed now'],
+                ['people', 'Friends pay you back', `Within ${hold} min, in the app`],
+                ['bell', 'See who still owes', 'Send reminders any time'],
+              ]
+          ).map(([icon, title, sub], i, arr) => (
+            <li key={title} className="relative flex gap-3 pb-4 last:pb-0">
+              {i < arr.length - 1 && <span className="absolute left-[19px] top-10 bottom-0 w-0.5 bg-line" aria-hidden="true" />}
+              <span className={`w-10 h-10 rounded-2xl grid place-items-center shrink-0 ${i === 0 ? 'bg-brand text-white' : 'bg-brand-soft text-brand'}`}><StepIcon name={icon} /></span>
+              <div className="pt-0.5">
+                <div className="text-[14px] font-semibold">{title}</div>
+                <div className="text-[12px] text-sub">{sub}</div>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <div className="flex flex-wrap gap-1.5 mt-4">
+          {(variant === 'A' ? ['Paid seats are never lost', '+10 min, once', 'No extra fee'] : ['Nobody loses a seat', 'Reminders built in', 'No extra fee']).map((t) => (
+            <span key={t} className="h-7 px-2.5 rounded-full bg-ok-soft text-ok-ink text-[11px] font-semibold flex items-center gap-1">✓ {t}</span>
+          ))}
+        </div>
+        {hold !== null && hold < db.config.holdMinutes && <div className="mt-3 rounded-2xl bg-amber-soft text-amber-ink text-[12px] px-3 py-2">Hold shortened to {hold} min: it must end 30 min before the show.</div>}
+        <details className="mt-3 group">
+          <summary className="list-none cursor-pointer text-[12px] font-semibold text-sub flex items-center gap-1">More rules <span className="transition group-open:rotate-180">⌄</span></summary>
+          <ul className="mt-2 text-[12px] text-sub space-y-1">
+            {variant === 'A' ? (
+              <li>· If you don't decide within 2 minutes of the timer ending, unpaid seats are released.</li>
+            ) : (
+              <li>· If someone doesn't pay you back, the money isn't refunded to you automatically.</li>
+            )}
+            <li>· One group booking at a time.</li>
+            <li>· You can move unpaid seats; a paid seat moves only if that friend agrees.</li>
+          </ul>
+        </details>
       </div>
       <BottomBar>
         <Button className="w-full" onClick={() => setPay(true)} disabled={hold === null}>
@@ -618,6 +641,14 @@ export function Review() {
       />
     </div>
   )
+}
+
+function StepIcon({ name }: { name: string }) {
+  const p = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  if (name === 'card') return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3 10h18M7 15h4" /></svg>
+  if (name === 'people') return <svg {...p}><circle cx="9" cy="8" r="3.5" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M15 14.6c2.8-.3 5 1.3 6 4.4" /></svg>
+  if (name === 'bell') return <svg {...p}><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0" /></svg>
+  return <svg {...p}><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg>
 }
 
 function Row({ a, b, muted }: { a: string; b: string; muted?: boolean }) {
