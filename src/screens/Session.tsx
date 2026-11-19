@@ -95,6 +95,7 @@ function Landing({ s }: { s: Session }) {
   const [nameTouched, setNameTouched] = useState(false)
   const [phone, setPhone] = useState('')
   const [busy, setBusy] = useState(false)
+  const [appBanner, setAppBanner] = useState(true)
   const going = s.members.filter((m) => !m.isHost && seatOf(s, m.id))
   const needsSeat = active && claimable.length > 0
   // A number already in the session is enough: that person already has a place (E10).
@@ -115,6 +116,23 @@ function Landing({ s }: { s: Session }) {
   return (
     <div className="bg-surface min-h-dvh">
       <Header title={`${firstName(h.name)} invited you`} sub="Group booking" onBack={() => nav('/')} />
+      {appBanner && (
+        // Soft app prompt: never blocks paying in the browser.
+        <div className="mx-3 mt-3 rounded-2xl bg-ink text-white px-3 py-2.5 flex items-center gap-3 anim-fade">
+          <span className="w-9 h-9 rounded-lg bg-brand grid place-items-center shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M4 7a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2a2 2 0 000-4z" /></svg>
+          </span>
+          <div className="flex-1 min-w-0 text-[12px] leading-snug"><span className="font-semibold">Faster in the app</span><br /><span className="text-white/70">Or just continue here. No download needed.</span></div>
+          <button className="h-8 px-3 rounded-full bg-white text-ink text-[12px] font-semibold shrink-0" onClick={() => {
+            act((d, n) => { log(d, n, d.sessions[s.id], 'guest', 'app_prompt_tapped', {}) })
+            toast('In the real app this opens the app, or the app store if it isn\u2019t installed.', 'info')
+          }}>Open app</button>
+          <button className="w-7 h-7 rounded-full text-white/60 grid place-items-center shrink-0" aria-label="Dismiss" onClick={() => {
+            setAppBanner(false)
+            act((d, n) => { log(d, n, d.sessions[s.id], 'guest', 'app_prompt_dismissed', {}) })
+          }}>✕</button>
+        </div>
+      )}
       <TimerBar s={s} />
       <div className="sect p-4 flex gap-3">
         <Poster small />
