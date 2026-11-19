@@ -177,7 +177,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (memberId) sessionStorage.setItem('gb_as_' + sid, memberId)
       else sessionStorage.removeItem('gb_as_' + sid)
       bump((x) => x + 1)
-      if (tabOnly) return
+      return // a tab acting as someone never changes the identity other tabs share
     }
     setIds((cur) => {
       const next = { ...cur }
