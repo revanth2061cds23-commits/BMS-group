@@ -28,7 +28,7 @@ const STYLE: Record<SeatLook['kind'], string> = {
   held: 'bg-amber border border-amber text-ink',
   failed: 'bg-white border-2 border-err text-err',
   open: 'bg-white border-2 border-dashed border-amber text-amber',
-  released: 'bg-[#fdecea] border border-err/40 text-err/70',
+  released: 'bg-err-soft border border-err/40 text-err/70',
   disabled: 'bg-white border border-[#cfd0d8] text-[#c4c5cf]',
   target: 'bg-white border-2 border-brand text-brand',
 }

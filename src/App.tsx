@@ -14,15 +14,15 @@ function DemoBar() {
   const s = sid ? db.sessions[sid] : undefined
   const me = sid ? identity(sid) : null
   return (
-    <div className="bg-[#fff4e0] border-b border-[#f8dca6] px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto text-[12px]">
-      <span className="shrink-0 font-semibold text-[#7a4b00] pr-1">Demo · viewing as</span>
-      {!s && <span className="text-[#7a4b00]">the host (open a session to switch people)</span>}
+    <div className="bg-amber-soft border-b border-amber/30 px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto text-[12px]">
+      <span className="shrink-0 font-semibold text-amber-ink pr-1">Demo · viewing as</span>
+      {!s && <span className="text-amber-ink">the host (open a session to switch people)</span>}
       {s?.members.map((m) => (
-        <button key={m.id} onClick={() => setIdentity(s.id, m.id, true)} className={`shrink-0 h-7 px-2.5 rounded-full border ${me === m.id ? 'bg-ink text-white border-ink' : 'bg-white border-[#f8dca6]'}`}>
+        <button key={m.id} onClick={() => setIdentity(s.id, m.id, true)} className={`shrink-0 h-7 px-2.5 rounded-full border ${me === m.id ? 'bg-ink text-white border-ink' : 'bg-white border-amber/30'}`}>
           {firstName(m.name)}{m.isHost ? ' (host)' : ''}
         </button>
       ))}
-      {s && <button onClick={() => setIdentity(s.id, null, true)} className={`shrink-0 h-7 px-2.5 rounded-full border ${!me ? 'bg-ink text-white border-ink' : 'bg-white border-[#f8dca6]'}`}>+ New person</button>}
+      {s && <button onClick={() => setIdentity(s.id, null, true)} className={`shrink-0 h-7 px-2.5 rounded-full border ${!me ? 'bg-ink text-white border-ink' : 'bg-white border-amber/30'}`}>+ New person</button>}
     </div>
   )
 }

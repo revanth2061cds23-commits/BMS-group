@@ -36,13 +36,13 @@ export function PaySheet({ open, amount, title, lines, onClose, onResult, note }
       <div className="text-[12px] text-sub mb-2">Pay with</div>
       <div className="grid grid-cols-2 gap-2 mb-4">
         {(['upi', 'card'] as const).map((m) => (
-          <button key={m} onClick={() => setMethod(m)} className={`h-12 rounded-lg border text-[14px] ${method === m ? 'border-ink bg-surface font-medium' : 'border-line'}`}>
+          <button key={m} onClick={() => setMethod(m)} className={`h-12 rounded-2xl border text-[14px] ${method === m ? 'border-ink bg-surface font-medium' : 'border-line'}`}>
             {m === 'upi' ? 'UPI' : 'Debit / credit card'}
           </button>
         ))}
       </div>
-      {note && <div className="text-[12px] bg-[#fff4e0] text-[#7a4b00] rounded-lg p-2.5 mb-3">{note}</div>}
-      <div className="rounded-lg border border-dashed border-[#c5c7d4] p-3 mb-3 text-[12px] text-sub">
+      {note && <div className="text-[12px] bg-amber-soft text-amber-ink rounded-2xl p-2.5 mb-3">{note}</div>}
+      <div className="rounded-2xl border border-dashed border-[#c5c7d4] p-3 mb-3 text-[12px] text-sub">
         Simulated payment. No real {method === 'upi' ? 'UPI' : 'card'} details are collected and no money moves. Choose an outcome:
       </div>
       {busy ? (

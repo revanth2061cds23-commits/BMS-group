@@ -116,7 +116,7 @@ function Landing({ s }: { s: Session }) {
     <div className="bg-surface min-h-dvh">
       <Header title={`${firstName(h.name)} invited you`} sub="Group booking" onBack={() => nav('/')} />
       <TimerBar s={s} />
-      <div className="bg-white p-4 flex gap-3">
+      <div className="sect p-4 flex gap-3">
         <Poster small />
         <div className="text-[13px] min-w-0">
           <div className="font-semibold text-[17px] leading-tight">{s.show.movie}</div>
@@ -170,10 +170,10 @@ function Landing({ s }: { s: Session }) {
                   <button
                     key={x.id}
                     onClick={() => { setSeatId(x.id); if (!nameTouched) setName(o?.name ?? '') }}
-                    className={`h-12 px-3 rounded-lg border text-left flex items-center gap-2 ${on ? 'border-brand bg-[#fff5f7]' : 'border-line'}`}
+                    className={`h-12 px-3 rounded-2xl border text-left flex items-center gap-2 ${on ? 'border-brand bg-brand-soft' : 'border-line'}`}
                     aria-pressed={on}
                   >
-                    <span className={`w-9 h-7 rounded-md grid place-items-center text-[12px] font-semibold shrink-0 ${o ? 'bg-amber text-ink' : 'border border-dashed border-amber text-[#a86500]'}`}>{x.id}</span>
+                    <span className={`w-9 h-7 rounded-lg grid place-items-center text-[12px] font-semibold shrink-0 ${o ? 'bg-amber text-ink' : 'border border-dashed border-amber text-amber-ink'}`}>{x.id}</span>
                     <span className="text-[13px] truncate">{o ? firstName(o.name) : 'Open seat'}</span>
                   </button>
                 )
@@ -298,21 +298,53 @@ function Live({ s, me }: { s: Session; me: Member }) {
 
   const hero = (() => {
     if (me.isHost) {
-      const total = s.seats.length
-      const pct = s.variant === 'A' ? (paidCount / total) * 100 : total > 1 ? ((paidCount - 1) / (total - 1)) * 100 : 100
+      // Variant A counts every seat (the host's is paid); Variant B counts the friends paying the host back.
+      const cols = s.seats.slice().sort((x, y) => seatSort(x.id, y.id)).filter((x) => s.variant === 'A' || x.memberId !== h.id)
+      const done = cols.filter((x) => { const d = seatDisplay(s, x); return d === 'paid' || d === 'covered' }).length
+      const friendsPaid = s.seats.filter((x) => x.memberId !== h.id && (s.variant === 'A' ? x.state === 'paid' : memberById(s, x.memberId)?.status === 'paid')).length
+      const friendsTotal = s.seats.filter((x) => x.memberId !== h.id).length
+      const pct = cols.length ? Math.round((done / cols.length) * 100) : 100
+      const all = done === cols.length
+      const waiting = cols.length - done
       return (
         <Card className="p-4">
-          <div className="flex items-baseline justify-between">
-            <div className="text-[16px] font-semibold">
-              {s.variant === 'A' ? `${paidCount} of ${total} seats paid` : `${inr((paidCount - 1) * price)} of ${inr((total - 1) * price)} paid back`}
+          <div className="flex items-center gap-4">
+            <ProgressRing pct={pct} all={all} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] text-sub font-medium">{s.variant === 'A' ? 'Seats confirmed' : 'Friends paid you back'}</div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-[28px] font-bold leading-tight">{done}</span>
+                <span className="text-[16px] text-sub font-semibold">of {cols.length}</span>
+              </div>
+              <div className="text-[12px] text-sub">{inr(friendsPaid * price)} of {inr(friendsTotal * price)} collected from friends</div>
             </div>
-            {s.status === 'expired' && <button className="text-brand text-[13px] font-medium" onClick={() => setResolveDismissed(false)}>Resolve</button>}
+            {s.status === 'expired' && <Button className="!h-9 !px-3 text-[12px]" onClick={() => setResolveDismissed(false)}>Resolve</Button>}
           </div>
-          <div className="h-2 rounded-full bg-surface mt-2 overflow-hidden"><div className="h-full bg-ok transition-all" style={{ width: `${pct}%` }} /></div>
-          <div className="text-[12px] text-sub mt-2">
-            {s.variant === 'A'
-              ? s.status === 'expired' ? 'The hold has ended. Decide what happens to unpaid seats.' : 'Each seat is confirmed the moment its friend pays.'
-              : 'Every seat is already confirmed. Friends are paying you back.'}
+          <div className="grid gap-1.5 mt-4" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}>
+            {cols.map((x) => {
+              const d = seatDisplay(s, x)
+              const m = memberById(s, x.memberId)
+              const seg = d === 'paid' || d === 'covered' ? 'bg-ok' : d === 'failed' ? 'bg-err' : d === 'open' || d === 'released' ? 'bg-line' : 'bg-amber/45 seg-wait'
+              return (
+                <div key={x.id} className="flex flex-col items-center gap-1.5 min-w-0">
+                  <div className={`h-1.5 w-full rounded-full transition-colors duration-500 ${seg}`} />
+                  <div className="relative mt-1">
+                    {m ? <Avatar name={m.name} initials={m.initials} size={30} /> : <div className="w-[30px] h-[30px] rounded-full border-[1.5px] border-dashed border-amber grid place-items-center text-amber text-[14px]">+</div>}
+                    <StatusBadge d={d} />
+                  </div>
+                  <div className="text-[10px] text-sub font-medium truncate max-w-full">{m ? (m.isHost ? 'You' : firstName(m.name)) : 'Open'}</div>
+                </div>
+              )
+            })}
+          </div>
+          <div className={`mt-3 rounded-2xl px-3 py-2 text-[12px] ${all ? 'bg-ok-soft text-ok-ink' : s.status === 'expired' ? 'bg-err-soft text-err' : 'bg-surface text-sub'}`}>
+            {all
+              ? s.variant === 'A' ? 'Everyone has paid. Every seat is confirmed. 🎉' : 'Everyone has paid you back. 🎉'
+              : s.status === 'expired'
+                ? 'The hold has ended. Decide what happens to the unpaid seats.'
+                : s.variant === 'A'
+                  ? `Waiting on ${waiting} ${waiting === 1 ? 'friend' : 'friends'}. Each seat is confirmed the moment its friend pays.`
+                  : `Every seat is already confirmed. Waiting on ${waiting} ${waiting === 1 ? 'friend' : 'friends'} to pay you back.`}
           </div>
         </Card>
       )
@@ -336,7 +368,7 @@ function Live({ s, me }: { s: Session; me: Member }) {
     const d = seatDisplay(s, mySeat)
     const paid = d === 'paid' || d === 'covered'
     return (
-      <Card className={`p-4 ${paid ? 'bg-[#effaf1] border-[#c4ebcd]' : 'bg-[#fff8ec] border-[#f8dca6]'}`}>
+      <Card className={`p-4 ${paid ? 'bg-ok-soft border-ok/20' : 'bg-amber-soft border-amber/30'}`}>
         <div className="flex items-center gap-3">
           <SeatTag id={mySeat.id} tone={paid ? 'bg-ok text-white' : 'bg-amber text-ink'} />
           <div className="flex-1">
@@ -352,8 +384,8 @@ function Live({ s, me }: { s: Session; me: Member }) {
             </div>
           </div>
         </div>
-        {me.status === 'failed' && !paid && <div className="mt-3 text-[12px] text-err bg-[#fdecea] rounded-md px-2.5 py-2">Payment failed, try again. Your seat is still held.</div>}
-        {s.status === 'expired' && !paid && !pay.ok && <div className="mt-3 text-[12px] text-err bg-[#fdecea] rounded-md px-2.5 py-2">The hold has ended. {firstName(h.name)} is deciding what happens to unpaid seats.</div>}
+        {me.status === 'failed' && !paid && <div className="mt-3 text-[12px] text-err bg-err-soft rounded-lg px-2.5 py-2">Payment failed, try again. Your seat is still held.</div>}
+        {s.status === 'expired' && !paid && !pay.ok && <div className="mt-3 text-[12px] text-err bg-err-soft rounded-lg px-2.5 py-2">The hold has ended. {firstName(h.name)} is deciding what happens to unpaid seats.</div>}
         {paid && <Button variant="outline" className="w-full mt-3 !h-10" onClick={() => nav(`/s/${s.id}/ticket`)}>{s.variant === 'A' ? 'View my ticket' : 'View receipt'}</Button>}
       </Card>
     )
@@ -366,14 +398,14 @@ function Live({ s, me }: { s: Session; me: Member }) {
         sub={`${fmtDate(s.show.startsAt)} · ${fmtTime(s.show.startsAt)} · ${s.show.cinema.split(':')[0]}`}
         onBack={() => nav('/')}
         right={
-          <button aria-label="Notifications" onClick={() => { setLogOpen(true); setLastSeenLog(notices.length) }} className="relative w-9 h-9 grid place-items-center rounded-full active:bg-white/10">
+          <button aria-label="Notifications" onClick={() => { setLogOpen(true); setLastSeenLog(notices.length) }} className="relative w-9 h-9 grid place-items-center rounded-full active:bg-surface">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0" /></svg>
             {unread > 0 && <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-brand text-[10px] grid place-items-center">{unread}</span>}
           </button>
         }
       />
       <TimerBar s={s} />
-      {s.status === 'expired' && <div className="sticky top-14 z-20 h-10 px-4 flex items-center justify-between text-[13px] bg-err text-white"><span className="font-medium">Hold ended</span><span className="tabular-nums">Auto-release in {fmtClock((s.expiredAt ?? now) + AUTO_RELEASE_MS - now)}</span></div>}
+      {s.status === 'expired' && <div className="sticky top-14 z-20 px-3 pt-3 bg-surface"><div className="h-11 px-4 rounded-2xl flex items-center justify-between text-[13px] bg-err text-white"><span className="font-semibold">Hold ended</span><span className="tabular-nums">Auto-release in {fmtClock((s.expiredAt ?? now) + AUTO_RELEASE_MS - now)}</span></div></div>}
       <div className="p-3 space-y-3">
         <MoveRequestCard s={s} me={me} />
         {hero}
@@ -463,6 +495,31 @@ function Live({ s, me }: { s: Session; me: Member }) {
   )
 }
 
+function ProgressRing({ pct, all }: { pct: number; all: boolean }) {
+  const r = 26, c = 2 * Math.PI * r
+  return (
+    <div className="relative w-16 h-16 shrink-0">
+      <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--color-surface)" strokeWidth="7" />
+        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--color-ok)" strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} style={{ transition: 'stroke-dashoffset .6s ease' }} />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center text-[13px] font-bold">
+        {all ? <span className="text-ok text-[22px]">✓</span> : `${pct}%`}
+      </div>
+    </div>
+  )
+}
+
+function StatusBadge({ d }: { d: ReturnType<typeof seatDisplay> }) {
+  const base = 'absolute -bottom-1 -right-1 w-4 h-4 rounded-full grid place-items-center text-white text-[9px] font-bold ring-2 ring-white'
+  if (d === 'paid' || d === 'covered') return <span className={`${base} bg-ok`}>✓</span>
+  if (d === 'failed') return <span className={`${base} bg-err`}>!</span>
+  if (d === 'pending' || d === 'owes')
+    return <span className={`${base} bg-amber`}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M12 7v5l3 2" /></svg></span>
+  return null
+}
+
 const initialsFor = (s: Session, memberId: string | null) => memberById(s, memberId)?.initials ?? ''
 
 function SeatRow({ s, seatId, me, onPass }: { s: Session; seatId: string; me: Member; onPass(): void }) {
@@ -473,7 +530,7 @@ function SeatRow({ s, seatId, me, onPass }: { s: Session; seatId: string; me: Me
   const active = isActive(s)
   const canNudge = me.isHost && m && !m.isHost && (d === 'pending' || d === 'owes' || d === 'failed')
   const cooldown = m?.lastNudgeAt ? NUDGE_COOLDOWN_MS - (now - m.lastNudgeAt) : 0
-  const tone = d === 'paid' || d === 'covered' ? 'bg-ok text-white' : d === 'open' ? undefined : d === 'released' ? 'bg-[#fdecea] text-err' : 'bg-amber text-ink'
+  const tone = d === 'paid' || d === 'covered' ? 'bg-ok text-white' : d === 'open' ? undefined : d === 'released' ? 'bg-err-soft text-err' : 'bg-amber text-ink'
   return (
     <div className="px-3 py-2.5 flex items-center gap-3 border-t border-line">
       <SeatTag id={seat.id} open={d === 'open'} tone={tone} />
@@ -485,7 +542,7 @@ function SeatRow({ s, seatId, me, onPass }: { s: Session; seatId: string; me: Me
       {!(active && me.isHost && d === 'open') && <Pill kind={d} />}
       {active && canNudge && (
         <button
-          className={`text-[12px] font-medium px-2 h-8 rounded-md border ${cooldown > 0 ? 'text-sub border-line' : 'text-brand border-brand'}`}
+          className={`text-[12px] font-medium px-2 h-8 rounded-lg border ${cooldown > 0 ? 'text-sub border-line' : 'text-brand border-brand'}`}
           onClick={async () => {
             let e: string | null = null
             await act((dd, n) => { e = nudge(dd, n, s.id, m!.id); return e === null })
@@ -495,8 +552,8 @@ function SeatRow({ s, seatId, me, onPass }: { s: Session; seatId: string; me: Me
       )}
       {active && me.isHost && d === 'open' && (
         <div className="flex gap-1">
-          <button className="text-[12px] font-medium px-2 h-8 rounded-md border border-brand text-brand" onClick={onPass}>Pass</button>
-          {s.variant === 'A' && <button className="text-[12px] font-medium px-2 h-8 rounded-md border border-line text-sub" onClick={() => act((dd, n) => { releaseSeat(dd, n, s.id, seat.id) })}>Release</button>}
+          <button className="text-[12px] font-medium px-2 h-8 rounded-lg border border-brand text-brand" onClick={onPass}>Pass</button>
+          {s.variant === 'A' && <button className="text-[12px] font-medium px-2 h-8 rounded-lg border border-line text-sub" onClick={() => act((dd, n) => { releaseSeat(dd, n, s.id, seat.id) })}>Release</button>}
         </div>
       )}
     </div>
@@ -524,12 +581,12 @@ function ShareSheet({ s, open, onClose }: { s: Session; open: boolean; onClose()
   return (
     <Sheet open={open} onClose={onClose} title="Invite your friends">
       <div className="text-[12px] text-sub mb-2">Message preview</div>
-      <div className="bg-[#e7ffdb] rounded-lg rounded-tr-none p-3 text-[13px] whitespace-pre-wrap break-words mb-4 shadow-sm">{text}</div>
+      <div className="bg-[#e7ffdb] rounded-2xl rounded-tr-none p-3 text-[13px] whitespace-pre-wrap break-words mb-4 shadow-sm">{text}</div>
       <div className="grid gap-2">
         <a
           href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"
           onClick={() => logShare('whatsapp')}
-          className="h-11 rounded-lg bg-[#25D366] text-white text-[14px] font-medium grid place-items-center"
+          className="h-11 rounded-2xl bg-[#25D366] text-white text-[14px] font-medium grid place-items-center"
         >Share on WhatsApp</a>
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" onClick={() => { copy(sessionLink(s.id)); logShare('copy') }}>Copy link</Button>
@@ -565,13 +622,13 @@ function ContactPicker({ s, value, onChange }: { s: Session; value: SavedContact
     <div>
       <div className="flex flex-wrap gap-1.5 mb-2">
         {pool.slice(0, 8).map((c) => (
-          <button key={c.phone} onClick={() => onChange(c)} className={`h-8 px-3 rounded-full border text-[12px] ${value && normPhone(value.phone) === normPhone(c.phone) ? 'border-brand text-brand bg-[#fff5f7]' : 'border-line'}`}>{c.name}</button>
+          <button key={c.phone} onClick={() => onChange(c)} className={`h-8 px-3 rounded-full border text-[12px] ${value && normPhone(value.phone) === normPhone(c.phone) ? 'border-brand text-brand bg-brand-soft' : 'border-line'}`}>{c.name}</button>
         ))}
       </div>
       <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-        <input className="h-9 px-2.5 rounded-lg border border-line text-[13px] min-w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="h-9 px-2.5 rounded-lg border border-line text-[13px] min-w-0" placeholder="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <button className="h-9 px-3 rounded-lg border border-ink text-[12px]" disabled={name.trim().length < 2 || normPhone(phone).length < 10} onClick={() => onChange({ name: name.trim(), phone: normPhone(phone) })}>Use</button>
+        <input className="h-9 px-2.5 rounded-2xl border border-line text-[13px] min-w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="h-9 px-2.5 rounded-2xl border border-line text-[13px] min-w-0" placeholder="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <button className="h-9 px-3 rounded-2xl border border-ink text-[12px]" disabled={name.trim().length < 2 || normPhone(phone).length < 10} onClick={() => onChange({ name: name.trim(), phone: normPhone(phone) })}>Use</button>
       </div>
       {value && <div className="text-[12px] text-ok mt-2">Passing to {value.name} · {value.phone}</div>}
     </div>
@@ -624,7 +681,7 @@ function Resolution({ s, onClose }: { s: Session; onClose(): void }) {
       </div>
       <div className="p-4">
         {onlyHost ? (
-          <div className="rounded-lg bg-[#fdecea] border border-[#f5c2bd] p-3 mb-3">
+          <div className="rounded-2xl bg-err-soft border border-err/20 p-3 mb-3">
             <div className="text-[15px] font-semibold text-err">Only your seat is confirmed.</div>
             <div className="text-[13px] text-ink mt-0.5">Release {unpaid.length} seat{unpaid.length > 1 ? 's' : ''} or pay for them?</div>
           </div>
@@ -639,7 +696,7 @@ function Resolution({ s, onClose }: { s: Session; onClose(): void }) {
             const m = memberById(s, seat.memberId)
             const r = plan[seat.id]
             return (
-              <div key={seat.id} className="rounded-lg border border-line p-3">
+              <div key={seat.id} className="rounded-2xl border border-line p-3">
                 <div className="flex items-center gap-3 mb-2.5">
                   <SeatTag id={seat.id} open={seat.state === 'open'} tone={seat.state === 'open' ? undefined : 'bg-amber text-ink'} />
                   <div className="flex-1 min-w-0">
@@ -648,7 +705,7 @@ function Resolution({ s, onClose }: { s: Session; onClose(): void }) {
                   </div>
                   <div className="text-[13px] font-medium">{inr(price)}</div>
                 </div>
-                <div className="grid grid-cols-3 rounded-lg border border-line overflow-hidden text-[12px]" role="radiogroup" aria-label={`What happens to ${seat.id}`}>
+                <div className="grid grid-cols-3 rounded-2xl border border-line overflow-hidden text-[12px]" role="radiogroup" aria-label={`What happens to ${seat.id}`}>
                   {([['cover', `Pay ${inr(price)} myself`], ['pass', 'Pass to someone'], ['release', 'Release']] as const).map(([k, label], i) => (
                     <button
                       key={k} role="radio" aria-checked={r?.action === k}
@@ -667,7 +724,7 @@ function Resolution({ s, onClose }: { s: Session; onClose(): void }) {
         <button className="w-full mt-3 text-[13px] text-err font-medium h-10" onClick={() => setPlan(Object.fromEntries(unpaid.map((x) => [x.id, { action: 'release' } as Resolution])))}>
           Release all unpaid seats
         </button>
-        <div className="rounded-lg bg-surface p-3 mt-1 flex items-center gap-3">
+        <div className="rounded-2xl bg-surface p-3 mt-1 flex items-center gap-3">
           <div className="flex-1 text-[13px]">
             <div className="font-medium">Need more time?</div>
             <div className="text-sub text-[12px]">{s.extensionUsed ? 'You can only extend once.' : !db.config.extensionAllowed ? 'Not available for this show: it is in high demand.' : 'Keep every unpaid seat held for 10 more minutes. Once only.'}</div>
@@ -703,7 +760,7 @@ function Outcome({ s, me, saveOpen, setSaveOpen }: { s: Session; me: Member; onS
   const cancelled = s.status === 'cancelled'
   const good = s.status === 'confirmed' || (s.status === 'settled' && owing.length === 0)
   const icon = cancelled ? '✕' : good ? '✓' : '!'
-  const iconTone = cancelled ? 'bg-[#fdecea] text-err' : good ? 'bg-[#e6f6ea] text-ok' : 'bg-[#fff4e0] text-[#a86500]'
+  const iconTone = cancelled ? 'bg-err-soft text-err' : good ? 'bg-ok-soft text-ok' : 'bg-amber-soft text-amber-ink'
   const myD = mySeat ? seatDisplay(s, mySeat) : null
   const iCanPay = !me.isHost && s.variant === 'B' && s.status === 'settled' && mySeat && me.status !== 'paid'
   const [payOpen, setPayOpen] = useState(false)
@@ -728,25 +785,25 @@ function Outcome({ s, me, saveOpen, setSaveOpen }: { s: Session; me: Member; onS
   return (
     <div>
       <Header title={s.show.movie} sub={`${fmtDate(s.show.startsAt)} · ${fmtTime(s.show.startsAt)}`} onBack={() => nav('/')} />
-      <div className="bg-white p-5 text-center">
+      <div className="sect p-5 text-center">
         <div className={`w-14 h-14 rounded-full grid place-items-center mx-auto text-2xl font-bold mb-3 ${iconTone}`}>{icon}</div>
         <h1 className="text-[20px] font-semibold">{outcomeLabel(s)}</h1>
         <p className="text-[13px] text-sub mt-1">{subtitle}</p>
-        {myMessage && <div className="mt-3 rounded-lg bg-[#fdecea] text-err text-[13px] p-3 font-medium">{myMessage}</div>}
+        {myMessage && <div className="mt-3 rounded-2xl bg-err-soft text-err text-[13px] p-3 font-medium">{myMessage}</div>}
       </div>
       <Divider />
-      <div className="bg-white">
+      <div className="sect">
         <div className="px-4 pt-3 pb-1 text-[12px] text-sub">Seat by seat</div>
         {s.seats.slice().sort((a, b) => seatSort(a.id, b.id)).map((seat) => {
           const m = memberById(s, seat.memberId)
           const d = seatDisplay(s, seat)
           return (
             <div key={seat.id} className="px-4 py-2.5 flex items-center gap-3 border-t border-line">
-              <SeatTag id={seat.id} open={d === 'open'} tone={d === 'paid' || d === 'covered' ? 'bg-ok text-white' : d === 'released' ? 'bg-[#fdecea] text-err' : d === 'open' ? undefined : 'bg-amber text-ink'} />
+              <SeatTag id={seat.id} open={d === 'open'} tone={d === 'paid' || d === 'covered' ? 'bg-ok text-white' : d === 'released' ? 'bg-err-soft text-err' : d === 'open' ? undefined : 'bg-amber text-ink'} />
               <div className="flex-1 text-[14px]">{m ? `${firstName(m.name)}${m.isHost ? ' · host' : ''}${m.id === me.id ? ' (you)' : ''}` : d === 'released' ? 'Released' : 'Open seat'}</div>
               <Pill kind={cancelled && d !== 'released' ? 'released' : d} label={cancelled ? (d === 'paid' || d === 'covered' ? 'Refunded' : 'Released') : undefined} />
               {me.isHost && s.variant === 'B' && d === 'owes' && m && (
-                <button className="text-[12px] font-medium px-2 h-8 rounded-md border border-brand text-brand" onClick={async () => {
+                <button className="text-[12px] font-medium px-2 h-8 rounded-lg border border-brand text-brand" onClick={async () => {
                   let e: string | null = null
                   await act((dd, n) => { e = nudge(dd, n, s.id, m.id); return e === null })
                   toast(e ?? `Reminded ${firstName(m.name)}`, e ? 'warn' : 'success')

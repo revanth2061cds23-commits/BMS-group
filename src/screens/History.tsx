@@ -51,7 +51,7 @@ export function History() {
                     <div className="text-[14px] font-semibold">{s.show.movie}</div>
                     <div className="text-[11px] text-sub">{fmtDate(s.show.startsAt)} · {fmtTime(s.show.startsAt)} · hosted by {h.phone === normPhone(profile.phone) ? 'you' : firstName(h.name)} · {s.variant === 'A' ? 'each paid own share' : 'host paid upfront'}</div>
                   </div>
-                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${isActive(s) ? 'bg-[#fff0f3] text-brand' : s.status === 'confirmed' || (s.status === 'settled' && !owing.length) ? 'bg-[#e6f6ea] text-[#137a2c]' : s.status === 'cancelled' ? 'bg-[#eef0f6] text-[#555a72]' : 'bg-[#fff4e0] text-[#a86500]'}`}>{outcomeLabel(s)}</span>
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${isActive(s) ? 'bg-brand-soft text-brand' : s.status === 'confirmed' || (s.status === 'settled' && !owing.length) ? 'bg-ok-soft text-ok-ink' : s.status === 'cancelled' ? 'bg-surface text-sub' : 'bg-amber-soft text-amber-ink'}`}>{outcomeLabel(s)}</span>
                 </div>
                 <div className="mt-2 space-y-1">
                   {s.seats.map((seat) => {
@@ -65,7 +65,7 @@ export function History() {
                     )
                   })}
                 </div>
-                {owing.length > 0 && !isActive(s) && <div className="mt-2 text-[12px] text-[#a86500]">Outstanding: {inr(owing.length * s.show.pricePerSeat)} from {owing.map((m) => firstName(m.name)).join(', ')}</div>}
+                {owing.length > 0 && !isActive(s) && <div className="mt-2 text-[12px] text-amber-ink">Outstanding: {inr(owing.length * s.show.pricePerSeat)} from {owing.map((m) => firstName(m.name)).join(', ')}</div>}
               </button>
               {h.phone === normPhone(profile.phone) && !isActive(s) && (
                 <Button variant="ghost" className="!h-9 w-full mt-1 text-[13px]" onClick={() => {

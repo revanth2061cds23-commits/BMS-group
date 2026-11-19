@@ -29,7 +29,7 @@ export function TicketScreen({ sid }: { sid: string }) {
       <div className="p-4">
         <div className="mb-3 empty:hidden"><MoveRequestCard s={s} me={me} /></div>
         {!seat || !paid ? (
-          <div className="bg-white rounded-lg border border-line p-5 text-center">
+          <div className="bg-white rounded-2xl border border-line p-5 text-center">
             <div className="text-[16px] font-semibold">No ticket yet</div>
             <div className="text-[13px] text-sub mt-1">{me.status === 'left' ? 'You left this booking. Your refund follows the cancellation policy.' : 'Pay for your seat to get your ticket.'}</div>
             <Button className="mt-4" onClick={() => nav(`/s/${sid}`)}>Back to the group</Button>
@@ -37,13 +37,13 @@ export function TicketScreen({ sid }: { sid: string }) {
         ) : (
           <>
             <div className="text-center mb-3">
-              <div className="w-12 h-12 rounded-full bg-[#e6f6ea] text-ok grid place-items-center mx-auto text-xl font-bold">✓</div>
+              <div className="w-12 h-12 rounded-full bg-ok-soft text-ok grid place-items-center mx-auto text-xl font-bold">✓</div>
               <div className="text-[17px] font-semibold mt-2">
                 {ticket ? (seat.coveredByHost && !me.isHost && me.status !== 'paid' ? `${firstName(h.name)} paid for your seat` : "You're in!") : `You paid ${firstName(h.name)} back`}
               </div>
               <div className="text-[12px] text-sub">{ticket ? 'Show this at the entrance. It is your own ticket.' : `Your seat is part of ${firstName(h.name)}'s booking.`}</div>
             </div>
-            <div className="bg-white rounded-xl border border-line overflow-hidden">
+            <div className="bg-white rounded-3xl border border-line overflow-hidden">
               <div className="p-4 flex gap-3">
                 <Poster small />
                 <div className="text-[13px] min-w-0">

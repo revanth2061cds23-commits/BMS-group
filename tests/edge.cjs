@@ -99,7 +99,7 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     await p.screenshot({ path: OUT + 'e1.png' })
     // E3 extend
     await p.click('text=Extend 10 min')
-    ok('E3 extended', await has(p, 'seats paid'))
+    ok('E3 extended', await has(p, 'Seats confirmed'))
     await fac(p); await p.click('text=Expire now'); await closeFac(p)
     ok('E3 extension used', await has(p, 'Extension used'))
     // E2 auto release
@@ -135,7 +135,7 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     ok('Friend gets ticket', await has(f, 'Priya Real'))
     const m = await p.evaluate((sid) => JSON.parse(localStorage.gb_db_v1).sessions[sid].members.find(x => x.phone === '9000012345'), sid)
     ok('Seat claimed by real number', m && m.status === 'paid' && m.name === 'Priya Real')
-    ok('Host sees it', await has(p, '2 of 4 seats paid'))
+    ok('Host sees it', await has(p, '₹300 of ₹900 collected from friends'))
     ok('no page errors (friend)', f.errors.length === 0, f.errors.join('|'))
     await ctx.close() }
   // A new device is never mistaken for the host

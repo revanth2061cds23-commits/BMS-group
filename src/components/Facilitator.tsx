@@ -96,7 +96,7 @@ export function Facilitator() {
           </div>
           <div className="flex gap-1 mt-3">
             {(['controls', 'cases', 'survey'] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`flex-1 h-8 rounded-md text-[12px] ${tab === t ? 'bg-brand' : 'bg-white/10'}`}>{t === 'controls' ? 'Controls' : t === 'cases' ? 'Edge cases' : 'Survey & data'}</button>
+              <button key={t} onClick={() => setTab(t)} className={`flex-1 h-8 rounded-lg text-[12px] ${tab === t ? 'bg-brand' : 'bg-white/10'}`}>{t === 'controls' ? 'Controls' : t === 'cases' ? 'Edge cases' : 'Survey & data'}</button>
             ))}
           </div>
         </div>
@@ -121,7 +121,7 @@ export function Facilitator() {
               </Section>
               <Section title={s ? `Session ${s.id.slice(0, 5)} · Variant ${s.variant} · ${outcomeLabel(s)}` : 'No session yet'}>
                 {sessions.length > 1 && (
-                  <select className="w-full h-9 rounded-md bg-white/10 px-2 mb-2" value={sid} onChange={(e) => setPick(e.target.value)}>
+                  <select className="w-full h-9 rounded-lg bg-white/10 px-2 mb-2" value={sid} onChange={(e) => setPick(e.target.value)}>
                     {sessions.map((x) => <option key={x.id} value={x.id} className="text-black">{x.id.slice(0, 5)} · {x.variant} · {x.members[0]?.name} · {outcomeLabel(x)}</option>)}
                   </select>
                 )}
@@ -139,7 +139,7 @@ export function Facilitator() {
               </Section>
               {s && others.length > 0 && (
                 <Section title="Simulate a member">
-                  <select className="w-full h-9 rounded-md bg-white/10 px-2 mb-2" value={m?.id} onChange={(e) => setMid(e.target.value)}>
+                  <select className="w-full h-9 rounded-lg bg-white/10 px-2 mb-2" value={m?.id} onChange={(e) => setMid(e.target.value)}>
                     {others.map((x) => <option key={x.id} value={x.id} className="text-black">{x.name} · {seatOf(s, x.id)?.id ?? 'no seat'} · {x.status}</option>)}
                   </select>
                   <div className="grid grid-cols-2 gap-2">
@@ -203,7 +203,7 @@ function Cases() {
     <div className="space-y-2">
       <div className="text-white/60 text-[12px]">How to reach each edge case. Use Controls for the buttons.</div>
       {cases.map(([k, v]) => (
-        <div key={k} className="flex gap-3 bg-white/5 rounded-md p-2.5">
+        <div key={k} className="flex gap-3 bg-white/5 rounded-lg p-2.5">
           <span className="font-semibold text-brand w-8 shrink-0">{k}</span><span className="text-white/85">{v}</span>
         </div>
       ))}
@@ -226,16 +226,16 @@ function Survey() {
   return (
     <>
       <Section title="Post-round survey">
-        <Row label="Group label (e.g. Group 3)"><input className="w-full h-9 rounded-md bg-white/10 px-2" value={group} onChange={(e) => setGroup(e.target.value)} /></Row>
+        <Row label="Group label (e.g. Group 3)"><input className="w-full h-9 rounded-lg bg-white/10 px-2" value={group} onChange={(e) => setGroup(e.target.value)} /></Row>
         <Row label="Session">
-          <select className="w-full h-9 rounded-md bg-white/10 px-2" value={sid} onChange={(e) => setSid(e.target.value)}>
+          <select className="w-full h-9 rounded-lg bg-white/10 px-2" value={sid} onChange={(e) => setSid(e.target.value)}>
             <option value="" className="text-black">—</option>
             {sessions.map((x) => <option key={x.id} value={x.id} className="text-black">{x.id.slice(0, 5)} · Variant {x.variant} · {outcomeLabel(x)}</option>)}
           </select>
         </Row>
         <Row label="How fair did this feel? (1–5)"><Stars v={fair} set={setFair} /></Row>
         <Row label="How stressful was it for the host? (1–5)"><Stars v={stress} set={setStress} /></Row>
-        <Row label="Note"><textarea className="w-full rounded-md bg-white/10 p-2 h-16" value={note} onChange={(e) => setNote(e.target.value)} /></Row>
+        <Row label="Note"><textarea className="w-full rounded-lg bg-white/10 p-2 h-16" value={note} onChange={(e) => setNote(e.target.value)} /></Row>
         <Button className="w-full !h-10" disabled={!fair || !stress} onClick={async () => {
           await act((d, n) => { log(d, n, d.sessions[sid] ?? null, 'facilitator', 'survey_submitted', { kind: 'round', group, fairness: fair, hostStress: stress, note }) })
           setFair(0); setStress(0); setNote(''); toast('Round survey saved', 'success')
@@ -243,7 +243,7 @@ function Survey() {
       </Section>
       <Section title="Final preference (after both variants)">
         <Seg value={pref} options={[['A', 'A · own share'], ['B', 'B · host upfront'], ['none', 'No pref.']]} onChange={setPref} />
-        <Row label="Why, in one sentence"><input className="w-full h-9 rounded-md bg-white/10 px-2" value={why} onChange={(e) => setWhy(e.target.value)} /></Row>
+        <Row label="Why, in one sentence"><input className="w-full h-9 rounded-lg bg-white/10 px-2" value={why} onChange={(e) => setWhy(e.target.value)} /></Row>
         <Button className="w-full !h-10" disabled={!pref} onClick={async () => {
           await act((d, n) => { log(d, n, null, 'facilitator', 'survey_submitted', { kind: 'final', group, preference: pref, why }) })
           setPref(''); setWhy(''); toast('Preference saved', 'success')
@@ -266,7 +266,7 @@ function Survey() {
           {sessions.slice(0, 8).map((x) => {
             const r = summarize(db, x)
             return (
-              <div key={x.id} className="bg-white/5 rounded-md p-2 text-[11px] text-white/80">
+              <div key={x.id} className="bg-white/5 rounded-lg p-2 text-[11px] text-white/80">
                 <span className="font-semibold text-white">{x.variant}</span> · {r.outcome} · {r.paidSeats}/{r.seats} paid · last pay {r.minutesToLastPayment || '—'} min · nudges {r.nudges} · {r.expiryActions || 'no expiry action'}
               </div>
             )
@@ -284,11 +284,11 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return <div><div className="text-white/70 text-[12px] mb-1">{label}</div>{children}</div>
 }
 function Btn({ children, onClick }: { children: ReactNode; onClick(): void }) {
-  return <button onClick={onClick} className="h-10 rounded-md bg-white/10 active:bg-white/20 text-[12px] px-2">{children}</button>
+  return <button onClick={onClick} className="h-10 rounded-lg bg-white/10 active:bg-white/20 text-[12px] px-2">{children}</button>
 }
 function Seg({ value, options, onChange }: { value: string; options: [string, string][]; onChange(v: string): void }) {
   return (
-    <div className="flex rounded-md overflow-hidden border border-white/15">
+    <div className="flex rounded-lg overflow-hidden border border-white/15">
       {options.map(([v, l]) => <button key={v} onClick={() => onChange(v)} className={`flex-1 h-9 text-[12px] ${value === v ? 'bg-brand' : 'bg-transparent'}`}>{l}</button>)}
     </div>
   )
@@ -304,7 +304,7 @@ function Toggle({ label, sub, value, onChange }: { label: string; sub?: string; 
 function Stars({ v, set }: { v: number; set(n: number): void }) {
   return (
     <div className="flex gap-1.5">
-      {[1, 2, 3, 4, 5].map((n) => <button key={n} onClick={() => set(n)} className={`w-10 h-9 rounded-md ${n <= v ? 'bg-brand' : 'bg-white/10'}`}>{n}</button>)}
+      {[1, 2, 3, 4, 5].map((n) => <button key={n} onClick={() => set(n)} className={`w-10 h-9 rounded-lg ${n <= v ? 'bg-brand' : 'bg-white/10'}`}>{n}</button>)}
     </div>
   )
 }

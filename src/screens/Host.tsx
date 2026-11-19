@@ -3,15 +3,16 @@ import { useStore, emptyDraft } from '../store'
 import { BottomBar, BrandBar, Button, Card, Divider, Field, Header, Sheet, Avatar } from '../components/ui'
 import { Legend, SeatMap, type SeatLook } from '../components/SeatMap'
 import { PaySheet } from '../components/PaySheet'
+import { ContactIcon, ContactsSheet, GroupEditor } from '../components/People'
 import {
   activeSessionForHost, createSession, firstName, fmtDate, fmtTime, holdMinutesFor, initials, inr, isActive, normPhone, soldSet, type CreateResult,
 } from '../logic'
-import { CONTACTS, MAX_SEATS } from '../seed'
+import { MAX_SEATS } from '../seed'
 import type { SavedContact } from '../types'
 
 export function Poster({ small }: { small?: boolean }) {
   return (
-    <div className={`${small ? 'w-14 h-20 text-[9px]' : 'w-24 h-36 text-[12px]'} rounded-md shrink-0 overflow-hidden relative bg-[linear-gradient(160deg,#ffb36b_0%,#f84464_45%,#3b2a6b_100%)]`}>
+    <div className={`${small ? 'w-14 h-20 text-[9px]' : 'w-24 h-36 text-[12px]'} rounded-lg shrink-0 overflow-hidden relative bg-[linear-gradient(160deg,#ffb36b_0%,#f84464_45%,#3b2a6b_100%)]`}>
       <svg viewBox="0 0 100 150" className="absolute inset-0 w-full h-full opacity-70">
         <path d="M20 40 l14 -10 l6 16 z" fill="#fff" /><path d="M34 30 q10 40 -4 90" stroke="#fff" strokeWidth=".8" fill="none" />
         <path d="M66 28 l12 -8 l4 14 z" fill="#ffe08a" /><path d="M78 20 q-6 50 6 100" stroke="#ffe08a" strokeWidth=".8" fill="none" />
@@ -38,14 +39,14 @@ export function ShowSummary() {
   return (
     <div>
       <BrandBar />
-      <div className="bg-white p-4 flex gap-4">
+      <div className="sect p-4 flex gap-4">
         <Poster />
         <div className="min-w-0">
           <h1 className="text-[18px] font-semibold leading-tight">{show.movie}</h1>
           <div className="text-[12px] text-sub mt-1">{show.certificate} · {show.language}</div>
           <div className="mt-3 text-[13px] font-medium">{show.cinema}</div>
           <div className="text-[12px] text-sub">{show.screen}</div>
-          <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-ok text-ok text-[13px] font-medium px-2.5 py-1">
+          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-ok text-ok text-[13px] font-medium px-2.5 py-1">
             {fmtDate(show.startsAt)} · {fmtTime(show.startsAt)}
           </div>
           <div className="text-[11px] text-sub mt-1">Starts in {minsToShow >= 2880 ? `${Math.floor(minsToShow / 1440)} days` : minsToShow >= 60 ? `${Math.floor(minsToShow / 60)}h ${minsToShow % 60}m` : `${minsToShow} min`}</div>
@@ -53,7 +54,7 @@ export function ShowSummary() {
       </div>
       <Divider />
       {active && (
-        <button onClick={() => nav(`/s/${active.id}`)} className="w-full text-left bg-[#fff0f3] border-y border-[#ffd3dc] px-4 py-3">
+        <button onClick={() => nav(`/s/${active.id}`)} className="w-full text-left bg-brand-soft border-y border-brand/20 px-4 py-3">
           <div className="text-[13px] font-semibold text-brand">Your group booking is in progress</div>
           <div className="text-[12px] text-sub">{active.seats.length} seats · tap to open the live session →</div>
         </button>
@@ -75,7 +76,7 @@ export function ShowSummary() {
         </Card>
         <Card className="p-3">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#fff0f3] grid place-items-center text-brand shrink-0">
+            <div className="w-9 h-9 rounded-full bg-brand-soft grid place-items-center text-brand shrink-0">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="8" r="3.5" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M15 14.6c2.8-.3 5 1.3 6 4.4" /></svg>
             </div>
             <div className="text-[13px]">
@@ -180,7 +181,7 @@ export function SeatSelect() {
     <div className="bg-white min-h-dvh">
       <Header title={db.show.movie} sub={`${db.show.cinema} · ${fmtTime(db.show.startsAt)}`} onBack={() => nav('/')} />
       <div className="p-3 border-b border-line">
-        <button onClick={toggleGroup} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left ${group ? 'border-brand bg-[#fff5f7]' : 'border-line'} ${hold === null ? 'opacity-60' : ''}`} role="switch" aria-checked={group}>
+        <button onClick={toggleGroup} className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left ${group ? 'border-brand bg-brand-soft' : 'border-line'} ${hold === null ? 'opacity-60' : ''}`} role="switch" aria-checked={group}>
           <div className="flex-1">
             <div className="text-[14px] font-semibold">Book with friends</div>
             <div className="text-[12px] text-sub">
@@ -198,7 +199,7 @@ export function SeatSelect() {
         <SeatMap look={look} onTap={tap} price={db.show.pricePerSeat} />
       </div>
       <div className="px-4 pb-2"><Legend items={[['available', 'Available'], ['selected', 'Selected'], ['sold', 'Sold']]} /></div>
-      {sel.length >= max && <div className="mx-4 mt-2 text-[12px] text-center text-[#a86500] bg-[#fff4e0] rounded-md py-2">Group sessions allow up to 10 seats</div>}
+      {sel.length >= max && <div className="mx-4 mt-2 text-[12px] text-center text-amber-ink bg-amber-soft rounded-lg py-2">Group sessions allow up to 10 seats</div>}
       <BottomBar>
         <div className="flex items-center gap-3">
           <div className="flex-1">
@@ -221,6 +222,9 @@ export function AddMembers() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [pickFor, setPickFor] = useState<string | null>(null)
+  const [contactsOpen, setContactsOpen] = useState(false)
+  const [groupOpen, setGroupOpen] = useState(false)
+  const [editGroupId, setEditGroupId] = useState<string | null>(null)
   useEffect(() => { if (draft.seats.length < 2) nav('/seats', true) }, [draft.seats.length, nav])
   const hostSeat = draft.hostSeat ?? draft.seats[0]
   const others = draft.seats.filter((x) => x !== hostSeat)
@@ -268,28 +272,58 @@ export function AddMembers() {
     setName(''); setPhone('')
   }
 
+  // Contacts sheet: keep people still ticked, drop unticked ones, fill empty seats with new ones.
+  const applyContacts = (list: SavedContact[]) => {
+    const keep = new Set(list.map((c) => normPhone(c.phone)))
+    const a: Record<string, SavedContact | null> = { ...draft.assign }
+    for (const seat of others) { const c = a[seat]; if (c && !keep.has(normPhone(c.phone))) a[seat] = null }
+    const placed = new Set(others.map((x) => a[x]).filter(Boolean).map((c) => normPhone(c!.phone)))
+    const queue = list.filter((c) => !placed.has(normPhone(c.phone)) && normPhone(c.phone) !== normPhone(profile.phone))
+    const empty = [...(pickFor && !a[pickFor] ? [pickFor] : []), ...others.filter((x) => !a[x] && x !== pickFor)]
+    queue.forEach((c, i) => { if (empty[i]) a[empty[i]] = c })
+    setDraft({ ...draft, assign: a })
+    setPickFor(null)
+    setContactsOpen(false)
+  }
+
+  const groups = db.groups.slice().sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+  const editing = editGroupId ? db.groups.find((g) => g.id === editGroupId) ?? null : null
+
   return (
     <div>
-      <Header title="Add friends" sub={`${draft.seats.length} seats · assign a seat to each friend`} onBack={() => nav('/seats')} />
-      <div className="bg-white p-4">
-        <div className="text-[12px] text-sub mb-2">Saved groups</div>
-        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
-          {db.groups.slice().sort((a, b) => b.lastUsedAt - a.lastUsedAt).map((g) => (
-            <button key={g.id} onClick={() => useGroup(g.id)} className={`shrink-0 h-9 px-3 rounded-full border text-[13px] ${draft.groupName === g.name ? 'border-brand text-brand bg-[#fff5f7]' : 'border-line'}`}>
-              {g.name} · {g.members.length}
-            </button>
-          ))}
+      <Header title="Add friends" sub={`${draft.seats.length} seats · give each friend a seat`} onBack={() => nav('/seats')} />
+      <div className="sect p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[14px] font-semibold">Saved groups</div>
+          <button className="h-8 px-3 rounded-full bg-brand-soft text-brand text-[12px] font-semibold" onClick={() => { setEditGroupId(null); setGroupOpen(true) }}>+ New group</button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {groups.map((g) => {
+            const on = draft.groupName === g.name
+            return (
+              <div key={g.id} className={`shrink-0 h-10 pl-4 pr-1 rounded-full border-[1.5px] flex items-center gap-1 ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line'}`}>
+                <button className="text-[13px] font-medium h-full" onClick={() => useGroup(g.id)}>{g.name} <span className={on ? 'text-brand/70' : 'text-sub'}>· {g.members.length}</span></button>
+                <button className="w-8 h-8 rounded-full grid place-items-center text-sub active:bg-surface" aria-label={`Edit ${g.name}`} onClick={() => { setEditGroupId(g.id); setGroupOpen(true) }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
+                </button>
+              </div>
+            )
+          })}
+          {groups.length === 0 && <div className="text-[13px] text-sub py-2">No groups yet. Add friends, then save them as a group.</div>}
         </div>
       </div>
-      <Divider />
-      <div className="bg-white">
-        <div className="px-4 pt-3 pb-1 text-[12px] text-sub">Seats ({assigned.length} of {others.length} friends added)</div>
-        <div className="px-4 py-2.5 flex items-center gap-3 border-b border-line">
+
+      <div className="sect">
+        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+          <div className="text-[14px] font-semibold">Seats</div>
+          <div className="text-[12px] text-sub">{assigned.length} of {others.length} friends added</div>
+        </div>
+        <div className="px-4 py-2.5 flex items-center gap-3">
           <SeatTag id={hostSeat} />
-          <Avatar name={profile.name} initials={initials(profile.name)} size={28} />
-          <div className="flex-1 text-[14px]">{firstName(profile.name)} <span className="text-sub">(you)</span></div>
+          <Avatar name={profile.name} initials={initials(profile.name)} size={36} />
+          <div className="flex-1 text-[14px] font-medium">{firstName(profile.name)} <span className="text-sub font-normal">(you)</span></div>
           {draft.seats.length > 1 && (
-            <select aria-label="Choose your seat" className="text-[12px] text-brand bg-transparent" value={hostSeat} onChange={(e) => {
+            <select aria-label="Choose your seat" className="text-[12px] font-semibold text-brand bg-brand-soft rounded-full h-8 px-2" value={hostSeat} onChange={(e) => {
               const ns = e.target.value
               const a = { ...draft.assign }
               const moved = a[ns] ?? null
@@ -304,59 +338,59 @@ export function AddMembers() {
         {others.map((seat) => {
           const c = draft.assign[seat]
           return (
-            <div key={seat} className={`px-4 py-2.5 flex items-center gap-3 border-b border-line ${pickFor === seat ? 'bg-[#fff5f7]' : ''}`}>
+            <div key={seat} className="px-4 py-2.5 flex items-center gap-3">
               <SeatTag id={seat} open={!c} />
               {c ? (
                 <>
-                  <Avatar name={c.name} initials={initials(c.name)} size={28} />
-                  <div className="flex-1 min-w-0"><div className="text-[14px] truncate">{c.name}</div><div className="text-[11px] text-sub">{c.phone}</div></div>
-                  <button className="text-[12px] text-sub px-2" onClick={() => setDraft({ ...draft, assign: { ...draft.assign, [seat]: null } })} aria-label={`Remove ${c.name}`}>Remove</button>
+                  <Avatar name={c.name} initials={initials(c.name)} size={36} />
+                  <div className="flex-1 min-w-0"><div className="text-[14px] font-medium truncate">{c.name}</div><div className="text-[12px] text-sub">{c.phone}</div></div>
+                  <button className="w-8 h-8 rounded-full bg-surface text-sub grid place-items-center text-[12px]" onClick={() => setDraft({ ...draft, assign: { ...draft.assign, [seat]: null } })} aria-label={`Remove ${c.name}`}>✕</button>
                 </>
               ) : (
                 <>
                   <div className="flex-1 text-[14px] text-sub">Open seat</div>
-                  <button className="text-[12px] text-brand font-medium px-2" onClick={() => setPickFor(pickFor === seat ? null : seat)}>{pickFor === seat ? 'Choosing…' : 'Assign'}</button>
+                  <button className="h-8 px-3 rounded-full bg-brand-soft text-brand text-[12px] font-semibold" onClick={() => { setPickFor(seat); setContactsOpen(true) }}>Add friend</button>
                 </>
               )}
             </div>
           )
         })}
-        <div className="px-4 py-2 text-[11px] text-sub">Open seats can be claimed by anyone with the link.</div>
+        <div className="mx-4 mb-4 mt-1 rounded-2xl bg-surface px-3 py-2 text-[12px] text-sub">Open seats can be claimed by anyone with the link.</div>
       </div>
-      <Divider />
-      <div className="bg-white p-4">
-        <div className="text-[12px] text-sub mb-2">Add by name and number{pickFor ? ` to ${pickFor}` : ''}</div>
-        <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-          <input className="h-10 px-3 rounded-lg border border-line text-[14px] min-w-0" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="h-10 px-3 rounded-lg border border-line text-[14px] min-w-0" placeholder="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <Button variant="outline" className="!h-10" onClick={addManual}>Add</Button>
+
+      <div className="sect p-4">
+        <div className="text-[14px] font-semibold mb-3">Add by name and number{pickFor ? ` to ${pickFor}` : ''}</div>
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <input className="h-12 px-4 rounded-2xl border-[1.5px] border-line text-[14px] min-w-0 outline-none focus:border-brand" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="h-12 px-4 rounded-2xl border-[1.5px] border-line text-[14px] min-w-0 outline-none focus:border-brand" placeholder="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <button className="w-12 h-12 rounded-2xl bg-brand-soft text-brand grid place-items-center" aria-label="Choose from contacts" onClick={() => setContactsOpen(true)}><ContactIcon /></button>
+        </div>
+        <Button variant="outline" className="w-full mt-2" onClick={addManual} disabled={name.trim().length < 2 || normPhone(phone).length < 10}>Add</Button>
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-[12px] text-sub">Want to reuse these friends later?</span>
+          <button className="text-[12px] font-semibold text-brand disabled:text-sub" disabled={assigned.length === 0} onClick={() => { setEditGroupId(null); setGroupOpen(true) }}>Save as a group</button>
         </div>
       </div>
-      <Divider />
-      <div className="bg-white">
-        <div className="px-4 pt-3 pb-1 text-[12px] text-sub">Contacts{pickFor ? ` · choosing for ${pickFor}` : ''}</div>
-        {CONTACTS.map((c) => {
-          const added = isAdded(c)
-          return (
-            <button key={c.phone} onClick={() => assign(c, pickFor ?? undefined)} className="w-full px-4 py-2.5 flex items-center gap-3 border-b border-line text-left">
-              <Avatar name={c.name} initials={initials(c.name)} size={32} />
-              <div className="flex-1"><div className="text-[14px]">{c.name}</div><div className="text-[11px] text-sub">{c.phone}</div></div>
-              <span className={`text-[12px] font-medium ${added ? 'text-ok' : 'text-brand'}`}>{added ? `✓ ${assigned.find(([, v]) => normPhone(v.phone) === normPhone(c.phone))?.[0]}` : 'Add'}</span>
-            </button>
-          )
-        })}
-      </div>
+
       <BottomBar>
         <Button className="w-full" onClick={() => nav('/review')}>
           Review · {assigned.length} friend{assigned.length === 1 ? '' : 's'}{others.length - assigned.length ? `, ${others.length - assigned.length} open` : ''}
         </Button>
       </BottomBar>
+      <ContactsSheet
+        open={contactsOpen} onClose={() => { setContactsOpen(false); setPickFor(null) }}
+        title={pickFor ? `Who sits in ${pickFor}?` : 'Choose friends'}
+        initial={assigned.map(([, c]) => c)} max={others.length}
+        cta={(n) => `Done · ${n} of ${others.length} seat${others.length === 1 ? '' : 's'} filled`}
+        onDone={applyContacts}
+      />
+      <GroupEditor open={groupOpen} onClose={() => setGroupOpen(false)} group={editing} initialMembers={assigned.map(([, c]) => c)} />
     </div>
   )
 }
 
 export function SeatTag({ id, open, tone }: { id: string; open?: boolean; tone?: string }) {
-  return <span className={`w-10 h-7 shrink-0 rounded-md grid place-items-center text-[12px] font-semibold ${tone ?? (open ? 'border border-dashed border-amber text-[#a86500]' : 'bg-ok text-white')}`}>{id}</span>
+  return <span className={`w-10 h-7 shrink-0 rounded-lg grid place-items-center text-[12px] font-semibold ${tone ?? (open ? 'border border-dashed border-amber text-amber-ink' : 'bg-ok text-white')}`}>{id}</span>
 }
 
 /* ---------------- 4. Review and pay ---------------- */
@@ -394,7 +428,7 @@ export function Review() {
       <div className="bg-white min-h-dvh">
         <Header title="Payment failed" onBack={() => setFailed(null)} />
         <div className="p-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-[#fdecea] text-err grid place-items-center mx-auto text-2xl mb-3">!</div>
+          <div className="w-14 h-14 rounded-full bg-err-soft text-err grid place-items-center mx-auto text-2xl mb-3">!</div>
           <h2 className="text-[18px] font-semibold mb-1">{failed}</h2>
           <p className="text-[13px] text-sub mb-6">No group session was created and nobody was invited. You haven't been charged.</p>
           <div className="grid gap-2">
@@ -409,7 +443,7 @@ export function Review() {
   return (
     <div>
       <Header title="Review and pay" sub={`${draft.seats.length} seats · group booking`} onBack={() => nav('/members')} />
-      <div className="bg-white p-4 flex gap-3">
+      <div className="sect p-4 flex gap-3">
         <Poster small />
         <div className="text-[13px]">
           <div className="font-semibold text-[15px]">{db.show.movie}</div>
@@ -418,7 +452,7 @@ export function Review() {
         </div>
       </div>
       <Divider />
-      <div className="bg-white">
+      <div className="sect">
         <div className="px-4 pt-3 pb-1 text-[12px] text-sub">Who sits where</div>
         <div className="px-4 py-2 flex items-center gap-3"><SeatTag id={hostSeat} /><div className="flex-1 text-[14px]">{firstName(profile.name)} (you)</div></div>
         {others.map((x) => {
@@ -428,7 +462,7 @@ export function Review() {
         <div className="h-2" />
       </div>
       <Divider />
-      <div className="bg-white p-4 text-[13px] space-y-2">
+      <div className="sect p-4 text-[13px] space-y-2">
         {variant === 'A' ? (
           <>
             <Row a={`Your seat (${hostSeat})`} b={inr(price)} />
@@ -444,13 +478,13 @@ export function Review() {
         <div className="flex justify-between pt-2 border-t border-line text-[15px] font-semibold"><span>You pay now</span><span>{inr(amount)}</span></div>
       </div>
       <Divider />
-      <div className="bg-white p-4">
+      <div className="sect p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-11 h-11 rounded-full bg-surface grid place-items-center text-[13px] font-semibold tabular-nums">{hold ?? '—'}<span className="sr-only">minutes</span></div>
           <div className="text-[13px]">
             <div className="font-semibold">{variant === 'A' ? `Seats held for ${hold}:00` : `${hold}:00 to pay you back`}</div>
             <div className="text-sub">{variant === 'A' ? 'Starts when you pay. Friends see the same timer.' : 'All seats are confirmed as soon as you pay.'}</div>
-            {hold !== null && hold < db.config.holdMinutes && <div className="text-[#a86500] text-[12px] mt-0.5">Shortened: holds must end 30 minutes before the show.</div>}
+            {hold !== null && hold < db.config.holdMinutes && <div className="text-amber-ink text-[12px] mt-0.5">Shortened: holds must end 30 minutes before the show.</div>}
           </div>
         </div>
         <ul className="text-[12px] text-sub space-y-1.5 list-disc pl-4">

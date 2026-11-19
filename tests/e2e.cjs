@@ -47,7 +47,7 @@ const B = process.env.BASE_URL || 'http://localhost:4173'
   await shot(mem, '09-ticket')
   // host sees update
   const t0 = Date.now()
-  await host.waitForSelector('text=2 of 4 seats paid', { timeout: 3000 })
+  await host.waitForSelector('text=₹300 of ₹900 collected from friends', { timeout: 3000 })
   console.log('host saw payment in', Date.now() - t0, 'ms')
   // facilitator: Priya payment fails, Karan declines
   await host.click('text=FAC')
