@@ -28,6 +28,10 @@ export const SEED_GROUPS = (now: number): Group[] => [
 
 export const DEFAULT_PROFILE = { name: 'Rohan Sharma', phone: '9876500001' }
 
+/** The show everyone books by default: 19 Dec 2026, 11:20 PM India time. */
+export const SHOW_STARTS_AT = Date.parse('2026-12-19T23:20:00+05:30')
+
+/** minutesToShow = 0 uses the fixed show time; a positive value puts the show that many minutes away (to test E17). */
 export function makeShow(simNow: number, minutesToShow: number): Show {
   return {
     movie: 'Kites Over Bandra',
@@ -35,7 +39,7 @@ export function makeShow(simNow: number, minutesToShow: number): Show {
     certificate: 'UA',
     cinema: 'Galaxy Cinemas: Andheri West',
     screen: 'Audi 3',
-    startsAt: simNow + minutesToShow * 60000,
+    startsAt: minutesToShow > 0 ? simNow + minutesToShow * 60000 : SHOW_STARTS_AT,
     pricePerSeat: 300,
   }
 }
@@ -45,7 +49,7 @@ export function defaultConfig(now: number): Config {
     variant: 'A',
     holdMinutes: 30,
     extensionAllowed: true,
-    minutesToShow: 180,
+    minutesToShow: 0,
     clock: { anchorReal: now, anchorSim: now, speed: 1 },
     extraSold: [],
     snipeNext: false,

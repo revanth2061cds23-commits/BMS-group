@@ -110,8 +110,8 @@ export function Facilitator() {
                 <Row label={`Hold length: ${db.config.holdMinutes} min`}>
                   <input type="range" min={10} max={60} step={5} value={db.config.holdMinutes} onChange={(e) => act((d) => { d.config.holdMinutes = +e.target.value })} className="w-full accent-[#F84464]" />
                 </Row>
-                <Row label="Show starts in">
-                  <Seg value={String(Math.round((db.show.startsAt - now) / MIN) > 120 ? 180 : Math.round((db.show.startsAt - now) / MIN))} options={[['180', '3 h'], ['60', '60 m'], ['45', '45 m'], ['35', '35 m']]}
+                <Row label="Show starts">
+                  <Seg value={String(db.config.minutesToShow)} options={[['0', '19 Dec 11:20 PM'], ['60', 'In 60 m'], ['45', 'In 45 m'], ['35', 'In 35 m']]}
                     onChange={(v) => act((d, n) => { d.config.minutesToShow = +v; d.show = makeShow(n, +v) })} />
                 </Row>
                 <Toggle label="Allow one 10-min extension" sub="Off = high-demand show" value={db.config.extensionAllowed} onChange={(v) => act((d) => { d.config.extensionAllowed = v })} />

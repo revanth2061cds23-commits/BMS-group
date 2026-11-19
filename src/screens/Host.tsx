@@ -48,7 +48,7 @@ export function ShowSummary() {
           <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-ok text-ok text-[13px] font-medium px-2.5 py-1">
             {fmtDate(show.startsAt)} · {fmtTime(show.startsAt)}
           </div>
-          <div className="text-[11px] text-sub mt-1">Starts in {minsToShow >= 60 ? `${Math.floor(minsToShow / 60)}h ${minsToShow % 60}m` : `${minsToShow} min`}</div>
+          <div className="text-[11px] text-sub mt-1">Starts in {minsToShow >= 2880 ? `${Math.floor(minsToShow / 1440)} days` : minsToShow >= 60 ? `${Math.floor(minsToShow / 60)}h ${minsToShow % 60}m` : `${minsToShow} min`}</div>
         </div>
       </div>
       <Divider />

@@ -58,7 +58,7 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     await fac(p); await p.click('button:has-text("35 m")'); await closeFac(p)
     await p.goto(B + '/seats'); await p.waitForTimeout(200)
     ok('E17 group disabled', await has(p, 'Unavailable: the show starts too soon'))
-    await fac(p); await p.click('button:has-text("3 h")'); await p.click('text=Someone takes a seat during selection'); await closeFac(p)
+    await fac(p); await p.click('button:has-text("19 Dec")'); await p.click('text=Someone takes a seat during selection'); await closeFac(p)
     await p.evaluate(() => sessionStorage.removeItem('gb_draft'))
     await p.goto(B + '/seats'); await p.click('[role=switch]')
     for (const s of ['F5', 'F6', 'F7']) await p.click(`[aria-label="Seat ${s} available"]`)
