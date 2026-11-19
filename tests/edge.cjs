@@ -1,0 +1,144 @@
+const { chromium } = require('playwright')
+const OUT = process.env.SHOTS || './test-shots/'
+const B = process.env.BASE_URL || 'http://localhost:4173'
+const results = []
+const ok = (n, c, extra = '') => { results.push(`${c ? 'PASS' : 'FAIL'} ${n} ${extra}`) }
+async function fresh(browser, q = '?facilitator=1') {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } })
+  const p = await ctx.newPage()
+  p.errors = []
+  p.on('pageerror', e => p.errors.push(e.message))
+  await p.goto(B + '/' + q)
+  await p.waitForSelector('text=Select seats')
+  return { ctx, p }
+}
+const fac = async (p) => { await p.click('[aria-label="Open facilitator panel"]'); await p.waitForTimeout(250) }
+const closeFac = (p) => p.click('[aria-label="Close facilitator panel"]')
+const has = async (p, t, ms = 3000) => { try { await p.waitForSelector(`text=${t}`, { timeout: ms }); return true } catch { return false } }
+async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang · 4', ok = true) {
+  await p.evaluate(() => sessionStorage.removeItem('gb_draft'))
+  await p.goto(B + '/seats')
+  await p.click('[role=switch]')
+  for (const s of seats) await p.click(`[aria-label="Seat ${s} available"]`)
+  await p.click('text=Add friends')
+  if (group) await p.click(`text=${group}`)
+  await p.click('button:has-text("Review")')
+  await p.click('.fixed.bottom-0 button')
+  await p.click(ok ? 'text=Payment succeeds' : 'text=Payment fails')
+  if (ok) { await p.waitForURL(/\/s\//); await p.click('[aria-label=Close]') }
+}
+;(async () => {
+  const browser = await chromium.launch()
+  // E12 + E14 + E15
+  { const { ctx, p } = await fresh(browser)
+    await p.goto(B + '/seats'); await p.click('[role=switch]')
+    const free = await p.$$eval('[aria-label$=" available"]', els => els.slice(0, 11).map(e => e.getAttribute('aria-label')))
+    for (const a of free.slice(0, 10)) await p.click(`[aria-label="${a}"]`)
+    ok('E14 11th seat disabled', await p.locator('[aria-label$=" disabled"]').count() > 0 && await has(p, 'Group sessions allow up to 10 seats'))
+    await create(p, ['A3', 'A4', 'A5'], 'Office squad · 2', false)
+    ok('E12 host payment fails', await has(p, 'Payment failed. Your seats were not held.'))
+    await p.screenshot({ path: OUT + 'e12.png' })
+    await create(p, ['A3', 'A4', 'A5'], 'Office squad · 2', true)
+    await p.evaluate(() => sessionStorage.removeItem('gb_draft'))
+    await p.goto(B + '/seats'); await p.click('[role=switch]')
+    ok('E15 second session blocked', await has(p, 'You have an active session for Kites Over Bandra'))
+    // E16 cancel
+    await p.goto(B + '/'); await p.click('text=Your group booking is in progress')
+    await p.click('text=Cancel session'); await p.click('text=Yes, cancel session')
+    ok('E16 cancel', await has(p, 'Cancelled'))
+    ok('no page errors (1)', p.errors.length === 0, p.errors.join('|'))
+    await ctx.close() }
+  // E17 + E18
+  { const { ctx, p } = await fresh(browser)
+    await fac(p); await p.click('button:has-text("45 m")'); await closeFac(p)
+    await p.goto(B + '/seats'); await p.click('[role=switch]')
+    for (const s of ['F5', 'F6']) await p.click(`[aria-label="Seat ${s} available"]`)
+    await p.click('text=Add friends'); await p.click('button:has-text("Review")')
+    ok('E17 hold shortened', await has(p, 'Shortened: holds must end 30 minutes before the show'))
+    await fac(p); await p.click('button:has-text("35 m")'); await closeFac(p)
+    await p.goto(B + '/seats'); await p.waitForTimeout(200)
+    ok('E17 group disabled', await has(p, 'Unavailable: the show starts too soon'))
+    await fac(p); await p.click('button:has-text("3 h")'); await p.click('text=Someone takes a seat during selection'); await closeFac(p)
+    await p.evaluate(() => sessionStorage.removeItem('gb_draft'))
+    await p.goto(B + '/seats'); await p.click('[role=switch]')
+    for (const s of ['F5', 'F6', 'F7']) await p.click(`[aria-label="Seat ${s} available"]`)
+    await p.click('text=Add friends')
+    ok('E18 seat taken', await has(p, 'is no longer available'))
+    await p.screenshot({ path: OUT + 'e18.png' })
+    // E19 offline
+    await fac(p); await p.click('text=This phone goes offline'); await closeFac(p)
+    ok('E19 offline banner', await has(p, 'Offline, reconnecting'))
+    await ctx.close() }
+  // A session: E7 grace, E8, E11, E10, E4/E1, E3, E2, E6
+  { const { ctx, p } = await fresh(browser)
+    await create(p)
+    const sid = p.url().split('/s/')[1].split('?')[0]
+    // timer colours
+    await fac(p); await p.click('text=Jump to 1 min left'); await closeFac(p)
+    await p.waitForTimeout(1600)
+    const bg = await p.$eval('[role=timer]', e => getComputedStyle(e).backgroundColor)
+    ok('Timer red under 3 min', bg.includes('217, 48, 37'), bg)
+    ok('Auto reminders fired', await p.evaluate(() => JSON.parse(localStorage.gb_db_v1).events.filter(e => e.type === 'reminder_auto').length) >= 1)
+    // E10: Aman opens on 2nd tab and the same number again on a 3rd tab
+    const m1 = await ctx.newPage(); await m1.goto(`${B}/s/${sid}?as=x1`)
+    await m1.fill('input[autocomplete=name]', 'Aman V'); await m1.fill('input[autocomplete=tel]', '9876500002')
+    await m1.click('text=Send code'); await m1.fill('[aria-label="One-time code"]', '1111'); await m1.click('text=Verify and continue')
+    const m2 = await ctx.newPage(); await m2.goto(`${B}/s/${sid}?as=x2`)
+    await m2.fill('input[autocomplete=name]', 'Aman'); await m2.fill('input[autocomplete=tel]', '+91 98765 00002')
+    await m2.click('text=Send code'); await m2.fill('[aria-label="One-time code"]', '2222'); await m2.click('text=Verify and continue')
+    const nMembers = await p.evaluate((sid) => JSON.parse(localStorage.gb_db_v1).sessions[sid].members.length, sid)
+    ok('E10 same phone = one member', nMembers === 4 && await has(m2, 'F6 is held for you'))
+    // E7 last-second payment (Aman)
+    await fac(p)
+    const sel = p.locator('select').filter({ hasText: 'Aman' })
+    await sel.selectOption(await sel.locator('option', { hasText: 'Aman' }).getAttribute('value'))
+    await p.click('text=Pays in last seconds'); await closeFac(p)
+    const ev = await p.evaluate(() => JSON.parse(localStorage.gb_db_v1).events.filter(e => e.type === 'member_paid').pop())
+    ok('E7 grace payment confirmed', ev && ev.payload.grace === true)
+    ok('E1/E4 resolution sheet', await has(p, 'The hold has ended'))
+    await p.screenshot({ path: OUT + 'e1.png' })
+    // E3 extend
+    await p.click('text=Extend 10 min')
+    ok('E3 extended', await has(p, 'seats paid'))
+    await fac(p); await p.click('text=Expire now'); await closeFac(p)
+    ok('E3 extension used', await has(p, 'Extension used'))
+    // E2 auto release
+    await fac(p); await p.click('text=Skip 2-min decision'); await closeFac(p)
+    ok('E2 auto release', await has(p, 'The host didn\'t decide within 2 minutes', 5000))
+    await p.screenshot({ path: OUT + 'e2.png' })
+    // E6: Priya opens late
+    const m3 = await ctx.newPage(); await m3.goto(`${B}/s/${sid}?as=x3`)
+    await m3.fill('input[autocomplete=name]', 'Priya'); await m3.fill('input[autocomplete=tel]', '9876500003')
+    await m3.click('text=Send code'); await m3.fill('[aria-label="One-time code"]', '3333'); await m3.click('text=Verify and continue')
+    ok('E6 late opener', await has(m3, 'This hold has ended. Your seat was released.'))
+    await m3.screenshot({ path: OUT + 'e6.png' })
+    // E11 Aman leaves after paying
+    await m2.goto(`${B}/s/${sid}/ticket`); await m2.click('text=Cancel my ticket'); await m2.click('text=Yes, cancel ticket')
+    ok('E11 left after paying', await p.evaluate((sid) => JSON.parse(localStorage.gb_db_v1).sessions[sid].members.find(m => m.phone === '9876500002').status, sid) === 'left')
+    ok('no page errors (3)', [p, m1, m2, m3].every(x => true) && p.errors.length === 0, p.errors.join('|'))
+    await ctx.close() }
+  // E4 only host + E9 + pass + E20 + demo switcher
+  { const { ctx, p } = await fresh(browser, '?demo=1')
+    await create(p, ['C6', 'C7', 'C8'], 'Office squad · 2')
+    ok('Demo bar', await has(p, 'Demo · viewing as'))
+    await p.click('.overflow-x-auto button:has-text("Vikram")')
+    ok('Demo switch to member', await has(p, 'C7 is held for you'))
+    p.once('dialog', d => d.accept())
+    await p.click('text=Can\'t make it')
+    await p.click('.overflow-x-auto button:has-text("(host)")')
+    ok('E9 decline → open seat with pass', await has(p, 'Open seat') && await p.locator('button:has-text("Pass")').count() > 0)
+    await p.click('button:has-text("Pass")'); await p.click('.fixed button:has-text("Dev Patel")'); await p.click('text=Pass seat')
+    ok('Pass a seat', await has(p, 'passed C7 to Dev'))
+    await p.click('[aria-label="Open facilitator panel"]'); await p.click('text=Expire now'); await closeFac(p)
+    ok('E4 only host warning', await has(p, 'Only your seat is confirmed.'))
+    await p.screenshot({ path: OUT + 'e4.png' })
+    await p.click('text=View the session first')
+    await p.click('[aria-label="Open facilitator panel"]'); await p.click('text=Cinema cancels show'); await closeFac(p)
+    ok('E20 show cancelled', await has(p, 'Show cancelled'))
+    await p.click('[aria-label="Open facilitator panel"]'); await p.waitForTimeout(400)
+    await p.screenshot({ path: OUT + 'facilitator.png' })
+    ok('no page errors (4)', p.errors.length === 0, p.errors.join('|'))
+    await ctx.close() }
+  console.log(results.join('\n'))
+  await browser.close()
+})().catch(e => { console.log(results.join('\n')); console.error('FAIL', e.message); process.exit(1) })

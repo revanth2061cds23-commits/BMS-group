@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #F84464;
+  --color-ink: #333545;
+  --color-sub: #666666;
+  --color-surface: #F5F5FA;
+  --color-line: #E5E6EE;
+  --color-ok: #1EA83C;
+  --color-amber: #F5A623;
+  --color-sold: #E0E0E0;
+  --color-err: #D93025;
+  --font-sans: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html, body { background: #e8e9f0; color: #333545; -webkit-tap-highlight-color: transparent; }
+body { font-size: 14px; }
+#root { max-width: 390px; margin: 0 auto; min-height: 100dvh; background: #F5F5FA; position: relative; }
+@media (min-width: 500px) {
+  #root { box-shadow: 0 0 0 1px #d6d7e0, 0 10px 40px rgba(0,0,0,.08); }
+}
+button { cursor: pointer; }
+input { font-family: inherit; }
+
+@keyframes up { from { transform: translateY(100%) } to { transform: none } }
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes down { from { transform: translateY(-8px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(248,68,100,.5) } 100% { box-shadow: 0 0 0 8px rgba(248,68,100,0) } }
+.anim-up { animation: up .22s ease-out }
+.anim-fade { animation: fade .2s ease-out }
+.anim-down { animation: down .2s ease-out }
+.pulse { animation: pulse-ring 1.4s infinite }
+@media (prefers-reduced-motion: reduce) { .anim-up, .anim-fade, .anim-down, .pulse { animation: none } }
