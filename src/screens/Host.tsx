@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import QRCode from 'qrcode'
 import { useStore, emptyDraft } from '../store'
 import { BottomBar, BrandBar, Button, Card, Divider, Field, Header, Sheet, Avatar } from '../components/ui'
 import { Legend, SeatMap, type SeatLook } from '../components/SeatMap'
 import { PaySheet } from '../components/PaySheet'
 import { ContactIcon, ContactsSheet, GroupEditor } from '../components/People'
 import {
-  activeSessionForHost, createSession, firstName, fmtDate, fmtTime, holdMinutesFor, initials, inr, isActive, normPhone, soldSet, type CreateResult,
+  activeSessionForHost, createSession, firstName, fmtDate, fmtTime, holdMinutesFor, initials, inr, isActive, log, normPhone, soldSet, uid, type CreateResult,
 } from '../logic'
 import { MAX_SEATS } from '../seed'
 import type { SavedContact } from '../types'
@@ -119,6 +120,8 @@ export function ShowSummary() {
 export function SeatSelect() {
   const { db, nav, draft, setDraft, toast, profile, act, now } = useStore()
   const [group, setGroup] = useState(draft.seats.length > 0)
+  const [hintHidden, setHintHidden] = useState(false)
+  const [soloPay, setSoloPay] = useState(false)
   const sold = useMemo(() => soldSet(db), [db])
   const sel = draft.seats
   const max = MAX_SEATS
@@ -142,6 +145,29 @@ export function SeatSelect() {
       if (hold === null) { toast('Book with friends is not available this close to showtime.', 'error'); return }
     }
     setGroup(!group)
+    act((d, n) => { log(d, n, null, profile.name, 'group_toggled', { on: !group, seatsSelected: sel.length, variant: d.config.variant }) })
+  }
+
+  // Regular (non-group) booking: the user pays for every seat, as in normal checkout.
+  const soloResult = async (ok: boolean) => {
+    const amount = sel.length * db.show.pricePerSeat
+    if (!ok) {
+      await act((d, n) => { log(d, n, null, profile.name, 'payment_failed', { mode: 'regular', seats: sel, amount }) })
+      setSoloPay(false)
+      toast('Payment failed. Your seats were not booked.', 'error')
+      return
+    }
+    const taken = sel.filter((x) => soldSet(db).has(x))
+    if (taken.length) { setSoloPay(false); toast(`Seat ${taken.join(', ')} is no longer available.`, 'error'); return }
+    const id = uid('BK').toUpperCase()
+    await act((d, n) => {
+      d.config.extraSold.push(...sel)
+      log(d, n, null, profile.name, 'regular_booking_paid', { bookingId: id, seats: sel, amount, groupHintShown: sel.length >= 2 && !hintHidden })
+    })
+    try { sessionStorage.setItem('gb_last_booking', JSON.stringify({ id, seats: sel, amount, name: profile.name })) } catch { /* ignore */ }
+    setSoloPay(false)
+    setDraft(emptyDraft())
+    nav('/booked', true)
   }
 
   const tap = (id: string) => {
@@ -163,7 +189,7 @@ export function SeatSelect() {
   }
 
   const proceed = async () => {
-    if (!group) { toast('Regular checkout is outside this prototype. Turn on Book with friends.', 'info'); return }
+    if (!group) { setSoloPay(true); return }
     if (sel.length < 2) { toast('Pick at least 2 seats for a group', 'warn'); return }
     if (db.config.snipeNext) {
       const victim = sel[Math.floor(sel.length / 2)]
@@ -180,35 +206,111 @@ export function SeatSelect() {
   return (
     <div className="bg-white min-h-dvh">
       <Header title={db.show.movie} sub={`${db.show.cinema} · ${fmtTime(db.show.startsAt)}`} onBack={() => nav('/')} />
-      <div className="p-3 border-b border-line">
-        <button onClick={toggleGroup} className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left ${group ? 'border-brand bg-brand-soft' : 'border-line'} ${hold === null ? 'opacity-60' : ''}`} role="switch" aria-checked={group}>
-          <div className="flex-1">
-            <div className="text-[14px] font-semibold">Book with friends</div>
-            <div className="text-[12px] text-sub">
-              {hold === null
-                ? 'Unavailable: the show starts too soon'
-                : variant === 'A' ? 'Hold seats for your group. Each friend pays for their own seat.' : 'Pay for everyone now. Friends pay you back in the app.'}
-            </div>
-          </div>
-          <span className={`w-11 h-6 rounded-full relative transition ${group ? 'bg-brand' : 'bg-[#c9cad6]'}`}>
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${group ? 'left-[22px]' : 'left-0.5'}`} />
-          </span>
-        </button>
+      <div className="px-3 pt-3">
+        <GroupToggle on={group} disabled={hold === null} variant={variant} onToggle={toggleGroup} />
       </div>
       <div className="py-4 px-2">
         <SeatMap look={look} onTap={tap} price={db.show.pricePerSeat} />
       </div>
       <div className="px-4 pb-2"><Legend items={[['available', 'Available'], ['selected', 'Selected'], ['sold', 'Sold']]} /></div>
-      {sel.length >= max && <div className="mx-4 mt-2 text-[12px] text-center text-amber-ink bg-amber-soft rounded-lg py-2">Group sessions allow up to 10 seats</div>}
+      {sel.length >= max && <div className="mx-4 mt-2 text-[12px] text-center text-amber-ink bg-amber-soft rounded-lg py-2">{group ? 'Group sessions allow up to 10 seats' : 'You can book up to 10 seats'}</div>}
+      {!group && sel.length >= 2 && !hintHidden && hold !== null && (
+        <div className="mx-3 mt-3 rounded-2xl bg-brand-soft p-3 flex items-center gap-3 anim-fade">
+          <div className="flex-1 text-[12px] leading-snug">
+            <span className="font-semibold">Booking for friends?</span> Turn on <span className="font-semibold">Book with friends</span> so {variant === 'A' ? 'each of them pays for their own seat' : 'they can pay you back in the app'}.
+          </div>
+          <button className="h-8 px-3 rounded-full bg-brand text-white text-[12px] font-semibold shrink-0" onClick={toggleGroup}>Turn on</button>
+          <button className="w-7 h-7 rounded-full text-sub grid place-items-center shrink-0" aria-label="Dismiss" onClick={() => setHintHidden(true)}>✕</button>
+        </div>
+      )}
       <BottomBar>
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <div className="text-[15px] font-semibold">{sel.length ? inr(sel.length * db.show.pricePerSeat) : 'Pick seats'}</div>
             <div className="text-[12px] text-sub">{group ? `${sel.length}/${max} seats` : `${sel.length} seats`}{sel.length ? ` · ${sel.join(', ')}` : ''}</div>
           </div>
-          <Button onClick={proceed} disabled={!sel.length}>{group ? 'Add friends' : 'Pay'}</Button>
+          <Button onClick={proceed} disabled={!sel.length}>{group ? 'Add friends' : `Pay ${sel.length ? inr(sel.length * db.show.pricePerSeat) : ''}`}</Button>
         </div>
       </BottomBar>
+      <PaySheet
+        open={soloPay} amount={sel.length * db.show.pricePerSeat} title="Pay for your tickets" onClose={() => setSoloPay(false)} onResult={soloResult}
+        lines={[[`${sel.length} seat${sel.length === 1 ? '' : 's'} · ${sel.join(', ')}`, inr(sel.length * db.show.pricePerSeat)], ['Booking for', 'Just you (regular booking)']]}
+      />
+    </div>
+  )
+}
+
+function GroupToggle({ on, disabled, variant, onToggle }: { on: boolean; disabled: boolean; variant: 'A' | 'B'; onToggle(): void }) {
+  return (
+    <button
+      onClick={onToggle} role="switch" aria-checked={on}
+      className={`relative w-full overflow-hidden rounded-3xl p-4 text-left transition shadow-[0_8px_24px_rgba(248,68,100,.18)] ${disabled ? 'opacity-60' : ''} ${on ? 'bg-brand text-white' : 'bg-[linear-gradient(120deg,#FFE3E9_0%,#FFF4F6_55%,#FFFFFF_100%)] text-ink ring-[1.5px] ring-brand/35'}`}
+    >
+      <svg className={`absolute right-14 -bottom-10 w-28 h-28 ${on ? 'text-white/10' : 'text-brand/[.07]'}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="9" cy="8" r="4" /><circle cx="17" cy="9" r="3" /><path d="M1 21c.8-4.5 4-7 8-7s7.2 2.5 8 7zM15.5 14.2c3.6-.4 6.4 1.6 7.5 5.8h-5.5c-.3-2.4-1-4.3-2-5.8z" />
+      </svg>
+      <div className="relative flex items-center gap-3">
+        <div className={`w-12 h-12 rounded-2xl grid place-items-center shrink-0 ${on ? 'bg-white/20' : 'bg-brand text-white'}`}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="8" r="3.5" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M15 14.6c2.8-.3 5 1.3 6 4.4" /></svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[16px] font-bold">Book with friends</span>
+            {!on && !disabled && <span className="text-[10px] font-bold tracking-wide bg-brand text-white rounded-full px-2 py-0.5">NEW</span>}
+            {on && <span className="text-[10px] font-bold tracking-wide bg-white text-brand rounded-full px-2 py-0.5">ON</span>}
+          </div>
+          <div className={`text-[12px] leading-snug mt-0.5 ${on ? 'text-white/90' : 'text-sub'}`}>
+            {disabled
+              ? 'Unavailable: the show starts too soon'
+              : variant === 'A' ? 'Hold seats for the group. Everyone pays for their own seat. No extra fee.' : 'Pay for everyone now. Friends pay you back in the app. No extra fee.'}
+          </div>
+        </div>
+        <span className={`w-12 h-7 rounded-full relative transition shrink-0 ${on ? 'bg-white' : 'bg-[#D5D7E1]'}`}>
+          <span className={`absolute top-1 w-5 h-5 rounded-full transition-all shadow ${on ? 'left-6 bg-brand' : 'left-1 bg-white'}`} />
+        </span>
+      </div>
+    </button>
+  )
+}
+
+/* ---------------- Regular booking confirmation ---------------- */
+
+export function Booked() {
+  const { nav, db } = useStore()
+  const [qr, setQr] = useState('')
+  const b = (() => { try { return JSON.parse(sessionStorage.getItem('gb_last_booking') || '') as { id: string; seats: string[]; amount: number; name: string } } catch { return null } })()
+  useEffect(() => { if (b) QRCode.toDataURL(b.id, { margin: 1, width: 220 }).then(setQr).catch(() => {}) }, [b?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!b) { nav('/', true); return null }
+  return (
+    <div>
+      <Header title="Booking confirmed" onBack={() => nav('/')} />
+      <div className="p-4">
+        <div className="text-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-ok-soft text-ok grid place-items-center mx-auto text-2xl font-bold">✓</div>
+          <div className="text-[18px] font-semibold mt-2">You're all set!</div>
+          <div className="text-[13px] text-sub">{b.seats.length} ticket{b.seats.length === 1 ? '' : 's'} · {inr(b.amount)} paid</div>
+        </div>
+        <div className="bg-white rounded-3xl overflow-hidden shadow-[0_1px_2px_rgba(34,37,57,.04),0_4px_16px_rgba(34,37,57,.05)]">
+          <div className="p-4 flex gap-3">
+            <Poster small />
+            <div className="text-[13px] min-w-0">
+              <div className="font-semibold text-[15px]">{db.show.movie}</div>
+              <div className="text-sub">{db.show.language}</div>
+              <div className="mt-1">{fmtDate(db.show.startsAt)} · {fmtTime(db.show.startsAt)}</div>
+              <div className="text-sub truncate">{db.show.cinema}</div>
+            </div>
+          </div>
+          <div className="border-t border-dashed border-line mx-4" />
+          <div className="p-4 flex items-center gap-4">
+            {qr ? <img src={qr} alt={`Booking QR code ${b.id}`} className="w-28 h-28" /> : <div className="w-28 h-28 bg-surface rounded-lg" />}
+            <div className="text-[13px] space-y-1">
+              <div><span className="text-sub">{db.show.screen} · Seats</span><br /><span className="font-semibold text-[18px]">{b.seats.join(', ')}</span></div>
+              <div className="text-[11px] text-sub">Booking ID {b.id}</div>
+            </div>
+          </div>
+        </div>
+        <Button className="w-full mt-4" onClick={() => nav('/')}>Done</Button>
+      </div>
     </div>
   )
 }

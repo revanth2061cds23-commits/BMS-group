@@ -1,7 +1,7 @@
 import { useStore, facilitatorFlag } from './store'
 import { OfflineBanner, Toasts } from './components/ui'
 import { Facilitator } from './components/Facilitator'
-import { AddMembers, Review, SeatSelect, ShowSummary } from './screens/Host'
+import { AddMembers, Booked, Review, SeatSelect, ShowSummary } from './screens/Host'
 import { SessionRoute } from './screens/Session'
 import { TicketScreen } from './screens/Ticket'
 import { History } from './screens/History'
@@ -36,6 +36,7 @@ export default function App() {
   else if (path === '/seats') screen = <SeatSelect />
   else if (path === '/members') screen = <AddMembers />
   else if (path === '/review') screen = <Review />
+  else if (path === '/booked') screen = <Booked />
   else if (path === '/history') screen = <History />
   else screen = <ShowSummary />
   return (

@@ -138,6 +138,18 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     ok('Host sees it', await has(p, '₹300 of ₹900 collected from friends'))
     ok('no page errors (friend)', f.errors.length === 0, f.errors.join('|'))
     await ctx.close() }
+  // Regular booking without group mode
+  { const { ctx, p } = await fresh(browser)
+    await p.goto(B + '/seats')
+    for (const x of ['B9', 'B10']) await p.click(`[aria-label="Seat ${x} available"]`)
+    ok('Group hint shows for 2+ seats', await has(p, 'Booking for friends?'))
+    await p.click('.fixed.bottom-0 button:has-text("Pay ₹600")')
+    await p.click('text=Payment succeeds')
+    ok('Regular booking confirmed', await has(p, "You're all set!") && await has(p, 'B9, B10'))
+    await p.goto(B + '/seats')
+    ok('Booked seats now sold', await p.locator('[aria-label="Seat B9 sold"]').count() === 1)
+    ok('no page errors (regular)', p.errors.length === 0, p.errors.join('|'))
+    await ctx.close() }
   // A new device is never mistaken for the host
   { const ctx1 = await browser.newContext(); const a = await ctx1.newPage(); await a.goto(B + '/'); await a.waitForSelector('text=Select seats')
     const ctx2 = await browser.newContext(); const b = await ctx2.newPage(); await b.goto(B + '/'); await b.waitForSelector('text=Select seats')
