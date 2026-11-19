@@ -202,6 +202,57 @@ export function joinSession(db: DB, now: number, sid: string, name: string, phon
   return { memberId: m.id, isNew }
 }
 
+/** Seats a person opening the link can still say are theirs. */
+export function claimableSeats(s: Session) {
+  return s.seats.filter((x) => {
+    if (x.state === 'open') return isActive(s)
+    const m = memberById(s, x.memberId)
+    return !!m && !m.isHost && !m.joinedAt && m.status !== 'paid' && x.state !== 'released'
+  })
+}
+
+/**
+ * Invite landing: the friend says which seat is theirs and gives a name and number.
+ * A number already in the session always wins (E10: one person, one member).
+ */
+export function joinAs(db: DB, now: number, sid: string, name: string, phone: string, seatId: string | null): { memberId?: string; error?: string } {
+  const s = db.sessions[sid]
+  if (!s) return { error: 'Session not found.' }
+  const p = normPhone(phone)
+  const existing = s.members.find((x) => x.phone === p)
+  if (existing) {
+    if (!existing.joinedAt) existing.joinedAt = now
+    log(db, now, s, existing.name, 'link_opened', { memberId: existing.id, matched: 'phone', status: s.status })
+    return { memberId: existing.id }
+  }
+  const seat = seatId ? s.seats.find((x) => x.id === seatId) : undefined
+  if (seat && !claimableSeats(s).includes(seat)) return { error: `Someone has already claimed ${seat.id}. Pick another seat.` }
+  const owner = seat && memberById(s, seat.memberId)
+  if (seat && owner) {
+    // The host added this friend; the real person now confirms it's them.
+    owner.name = name.trim() || owner.name
+    owner.initials = initials(owner.name)
+    owner.phone = p
+    owner.joinedAt = now
+    notify(s, now, 'host', `${firstName(owner.name)} opened the invite for ${seat.id}.`)
+    log(db, now, s, owner.name, 'link_opened', { memberId: owner.id, matched: 'seat', seat: seat.id, status: s.status })
+    return { memberId: owner.id }
+  }
+  const m = newMember({ name, phone: p }, false, now)
+  m.joinedAt = now
+  s.members.push(m)
+  if (seat) {
+    seat.memberId = m.id
+    seat.state = s.variant === 'A' ? 'held' : 'paid'
+    notify(s, now, 'all', `${firstName(m.name)} took open seat ${seat.id}.`)
+  } else {
+    m.status = 'declined' // no seat; can still view the group
+    notify(s, now, 'host', `${firstName(m.name)} opened the invite link.`)
+  }
+  log(db, now, s, m.name, 'link_opened', { memberId: m.id, matched: seat ? 'open_seat' : 'none', seat: seat?.id ?? null, status: s.status })
+  return { memberId: m.id }
+}
+
 /** Is a payment by this member allowed right now? Includes the E7 grace period. */
 export function canPay(s: Session, m: Member, now: number): { ok: boolean; grace?: boolean; reason?: string } {
   if (s.status === 'cancelled') return { ok: false, reason: s.showCancelled ? 'The show was cancelled.' : 'The host cancelled this session.' }

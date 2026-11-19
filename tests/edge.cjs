@@ -82,10 +82,10 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     // E10: Aman opens on 2nd tab and the same number again on a 3rd tab
     const m1 = await ctx.newPage(); await m1.goto(`${B}/s/${sid}?as=x1`)
     await m1.fill('input[autocomplete=name]', 'Aman V'); await m1.fill('input[autocomplete=tel]', '9876500002')
-    await m1.click('text=Send code'); await m1.fill('[aria-label="One-time code"]', '1111'); await m1.click('text=Verify and continue')
+    await m1.click('text=Not now, just show me the group')
     const m2 = await ctx.newPage(); await m2.goto(`${B}/s/${sid}?as=x2`)
     await m2.fill('input[autocomplete=name]', 'Aman'); await m2.fill('input[autocomplete=tel]', '+91 98765 00002')
-    await m2.click('text=Send code'); await m2.fill('[aria-label="One-time code"]', '2222'); await m2.click('text=Verify and continue')
+    await m2.click('text=Not now, just show me the group')
     const nMembers = await p.evaluate((sid) => JSON.parse(localStorage.gb_db_v1).sessions[sid].members.length, sid)
     ok('E10 same phone = one member', nMembers === 4 && await has(m2, 'F6 is held for you'))
     // E7 last-second payment (Aman)
@@ -109,7 +109,7 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     // E6: Priya opens late
     const m3 = await ctx.newPage(); await m3.goto(`${B}/s/${sid}?as=x3`)
     await m3.fill('input[autocomplete=name]', 'Priya'); await m3.fill('input[autocomplete=tel]', '9876500003')
-    await m3.click('text=Send code'); await m3.fill('[aria-label="One-time code"]', '3333'); await m3.click('text=Verify and continue')
+    await m3.click('.fixed.bottom-0 button:has-text("Continue")')
     ok('E6 late opener', await has(m3, 'This hold has ended. Your seat was released.'))
     await m3.screenshot({ path: OUT + 'e6.png' })
     // E11 Aman leaves after paying
@@ -117,6 +117,33 @@ async function create(p, seats = ['F5', 'F6', 'F7', 'F8'], group = 'Hostel gang 
     ok('E11 left after paying', await p.evaluate((sid) => JSON.parse(localStorage.gb_db_v1).sessions[sid].members.find(m => m.phone === '9876500002').status, sid) === 'left')
     ok('no page errors (3)', [p, m1, m2, m3].every(x => true) && p.errors.length === 0, p.errors.join('|'))
     await ctx.close() }
+  // Real friend on a new phone: number not in the session, picks their seat, pays from the invite
+  { const { ctx, p } = await fresh(browser)
+    await create(p)
+    const sid = p.url().split('/s/')[1].split('?')[0]
+    const f = await ctx.newPage(); f.errors = []; f.on('pageerror', e => f.errors.push(e.message))
+    await f.goto(`${B}/s/${sid}?as=newphone`)
+    ok('Invite shows host, movie and share', await has(f, 'Rohan invited you') && await has(f, 'Your share') && await has(f, 'Which seat is yours?'))
+    await f.screenshot({ path: OUT + 'invite.png' })
+    await f.click('button[aria-pressed]:has-text("Priya")')
+    await f.fill('input[autocomplete=name]', 'Priya Real')
+    await f.fill('input[autocomplete=tel]', '9000012345')
+    await f.click('.fixed.bottom-0 button:has-text("Pay ₹300 for F7")')
+    ok('Pay sheet opens straight away', await has(f, 'Payment succeeds'))
+    await f.click('text=Payment succeeds')
+    await f.waitForURL(/ticket/)
+    ok('Friend gets ticket', await has(f, 'Priya Real'))
+    const m = await p.evaluate((sid) => JSON.parse(localStorage.gb_db_v1).sessions[sid].members.find(x => x.phone === '9000012345'), sid)
+    ok('Seat claimed by real number', m && m.status === 'paid' && m.name === 'Priya Real')
+    ok('Host sees it', await has(p, '2 of 4 seats paid'))
+    ok('no page errors (friend)', f.errors.length === 0, f.errors.join('|'))
+    await ctx.close() }
+  // A new device is never mistaken for the host
+  { const ctx1 = await browser.newContext(); const a = await ctx1.newPage(); await a.goto(B + '/'); await a.waitForSelector('text=Select seats')
+    const ctx2 = await browser.newContext(); const b = await ctx2.newPage(); await b.goto(B + '/'); await b.waitForSelector('text=Select seats')
+    const pa = await a.evaluate(() => JSON.parse(localStorage.gb_profile).phone), pb = await b.evaluate(() => JSON.parse(localStorage.gb_profile).phone)
+    ok('Each device gets its own placeholder number', pa !== pb && pa !== '9876500001', `${pa} ${pb}`)
+    await ctx1.close(); await ctx2.close() }
   // E4 only host + E9 + pass + E20 + demo switcher
   { const { ctx, p } = await fresh(browser, '?demo=1')
     await create(p, ['C6', 'C7', 'C8'], 'Office squad · 2')

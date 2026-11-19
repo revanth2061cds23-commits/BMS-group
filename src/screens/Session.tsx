@@ -6,7 +6,7 @@ import { PaySheet } from '../components/PaySheet'
 import { Poster, SeatTag, seatSort } from './Host'
 import {
   AUTO_RELEASE_MS, GRACE_MS, NUDGE_COOLDOWN_MS, answerMove, canPay, cancelSession, claimOpenSeat, extend, firstName, fmtClock, fmtDate, fmtTime,
-  host, inr, isActive, joinSession, memberById, memberDecline, memberDisplay, memberPay, moveSeat, normPhone, nudge, outcomeLabel, owingMembers,
+  host, inr, isActive, claimableSeats, joinAs, memberById, memberDecline, memberDisplay, memberPay, moveSeat, normPhone, nudge, outcomeLabel, owingMembers,
   passSeat, releaseSeat, resolve, seatDisplay, seatOf, soldSet, startCheckout, unpaidSeats, uid, log, type Resolution,
 } from '../logic'
 import { CONTACTS } from '../seed'
@@ -15,14 +15,9 @@ import type { Member, SavedContact, Session } from '../types'
 export const sessionLink = (sid: string, memberId?: string) => `${location.origin}/s/${sid}${memberId ? `?m=${memberId}` : ''}`
 
 export function SessionRoute({ sid }: { sid: string }) {
-  const { db, identity, setIdentity, profile, nav } = useStore()
+  const { db, identity, nav } = useStore()
   const s = db.sessions[sid]
   const meId = identity(sid)
-
-  // The host's own device recognises them by phone number.
-  useEffect(() => {
-    if (s && !meId && normPhone(profile.phone) === s.hostPhone && !new URLSearchParams(location.search).get('m')) setIdentity(sid, s.hostId)
-  }, [s, meId, profile.phone, sid, setIdentity])
 
   if (!s) {
     return (
@@ -84,75 +79,131 @@ export function MoveRequestCard({ s, me }: { s: Session; me: Member }) {
 /* ---------------- 7. Invite landing ---------------- */
 
 function Landing({ s }: { s: Session }) {
-  const { act, setIdentity, nav, demo } = useStore()
+  const { act, setIdentity, nav, demo, toast } = useStore()
   const q = new URLSearchParams(location.search)
   const pre = memberById(s, q.get('m'))
-  const [name, setName] = useState(pre?.name ?? '')
-  const [phone, setPhone] = useState(pre?.phone ?? '')
-  const [step, setStep] = useState<'details' | 'otp'>('details')
-  const [otp, setOtp] = useState('')
   const h = host(s)
-  const preSeat = pre && seatOf(s, pre.id)
-  const others = s.members.filter((m) => !m.isHost && seatOf(s, m.id))
   const active = isActive(s)
+  const price = s.show.pricePerSeat
+  const claimable = claimableSeats(s)
+  const preSeat = pre ? seatOf(s, pre.id) : undefined
+  const [seatId, setSeatId] = useState<string | null>(
+    preSeat && claimable.includes(preSeat) ? preSeat.id : claimable.length === 1 ? claimable[0].id : null,
+  )
+  const ownerOf = (id: string | null) => memberById(s, s.seats.find((x) => x.id === id)?.memberId)
+  const [name, setName] = useState(ownerOf(seatId)?.name ?? '')
+  const [nameTouched, setNameTouched] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [busy, setBusy] = useState(false)
+  const going = s.members.filter((m) => !m.isHost && seatOf(s, m.id))
+  const needsSeat = active && claimable.length > 0
+  // A number already in the session is enough: that person already has a place (E10).
+  const known = normPhone(phone).length === 10 && s.members.some((m) => m.phone === normPhone(phone))
+  const valid = name.trim().length >= 2 && normPhone(phone).length === 10 && (!needsSeat || seatId !== null || known)
 
-  const verify = async () => {
-    let res: { memberId: string } | null = null
-    await act((d, n) => { res = joinSession(d, n, s.id, name, phone); return !!res })
-    if (res) setIdentity(s.id, (res as { memberId: string }).memberId, demo)
+  const join = async (thenPay: boolean) => {
+    setBusy(true)
+    let r: { memberId?: string; error?: string } = {}
+    await act((d, n) => { r = joinAs(d, n, s.id, name, phone, active ? seatId : null); return !!r.memberId })
+    setBusy(false)
+    if (r.error) { toast(r.error, 'error'); setSeatId(null); return }
+    if (!r.memberId) return
+    if (thenPay) sessionStorage.setItem('gb_autopay_' + s.id, '1')
+    setIdentity(s.id, r.memberId, demo)
   }
 
   return (
-    <div className="bg-white min-h-dvh">
+    <div className="bg-surface min-h-dvh">
       <Header title={`${firstName(h.name)} invited you`} sub="Group booking" onBack={() => nav('/')} />
       <TimerBar s={s} />
-      <div className="p-4 flex gap-3">
+      <div className="bg-white p-4 flex gap-3">
         <Poster small />
         <div className="text-[13px] min-w-0">
-          <div className="font-semibold text-[16px]">{s.show.movie}</div>
-          <div className="text-sub">{s.show.cinema}</div>
-          <div className="text-sub">{fmtDate(s.show.startsAt)} · {fmtTime(s.show.startsAt)}</div>
+          <div className="font-semibold text-[17px] leading-tight">{s.show.movie}</div>
+          <div className="text-sub mt-0.5">{fmtDate(s.show.startsAt)} · {fmtTime(s.show.startsAt)}</div>
+          <div className="text-sub truncate">{s.show.cinema}</div>
+          <div className="text-sub">{s.show.screen}</div>
         </div>
       </div>
-      <div className="px-4">
-        <Card className="p-4 bg-[#fff8ec] border-[#f8dca6]">
-          {preSeat && active ? (
-            <div className="text-[16px] font-semibold">{firstName(pre!.name)}, seat {preSeat.id} is {s.variant === 'A' ? 'held' : 'booked'} for you</div>
+
+      <div className="p-3 space-y-3">
+        <Card className="p-4">
+          {active ? (
+            <>
+              <div className="text-[13px] text-sub">
+                {s.variant === 'A'
+                  ? `${firstName(h.name)} is holding ${s.seats.length} seats. Everyone pays for their own.`
+                  : `${firstName(h.name)} already paid for all ${s.seats.length} seats. Your seat is confirmed.`}
+              </div>
+              <div className="flex items-end justify-between mt-3">
+                <div>
+                  <div className="text-[12px] text-sub">{s.variant === 'A' ? 'Your share' : `You pay ${firstName(h.name)} back`}</div>
+                  <div className="text-[30px] font-semibold leading-none mt-1">{inr(price)}</div>
+                </div>
+                <div className="text-[11px] text-sub text-right">1 seat<br />No extra fee</div>
+              </div>
+            </>
           ) : (
-            <div className="text-[16px] font-semibold">{firstName(h.name)} {s.variant === 'A' ? 'is holding' : 'booked'} {s.seats.length} seats for the group</div>
+            <>
+              <div className="text-[16px] font-semibold">{s.status === 'cancelled' ? 'This session was cancelled' : 'This session has ended'}</div>
+              <div className="text-[13px] text-sub mt-1">Enter your number to see what happened to your seat.</div>
+            </>
           )}
-          <div className="text-[13px] text-sub mt-1">
-            {!active
-              ? s.status === 'cancelled' ? 'This session was cancelled.' : 'This session has ended.'
-              : s.variant === 'A' ? `Pay ${inr(s.show.pricePerSeat)} for your own seat before the timer runs out.` : `${firstName(h.name)} paid for everyone. Pay back ${inr(s.show.pricePerSeat)} in the app.`}
+          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-line">
+            <div className="flex -space-x-2">
+              <Avatar name={h.name} initials={h.initials} size={28} ring="#fff" />
+              {going.slice(0, 6).map((m) => <Avatar key={m.id} name={m.name} initials={m.initials} size={28} ring="#fff" />)}
+            </div>
+            <div className="text-[12px] text-sub truncate">{[h, ...going].map((m) => firstName(m.name)).join(', ')}</div>
           </div>
-          <div className="flex -space-x-2 mt-3">
-            <Avatar name={h.name} initials={h.initials} size={30} ring="#fff8ec" />
-            {others.slice(0, 7).map((m) => <Avatar key={m.id} name={m.name} initials={m.initials} size={30} ring="#fff8ec" />)}
-          </div>
-          <div className="text-[12px] text-sub mt-1.5">{[h, ...others].map((m) => firstName(m.name)).join(', ')}</div>
+        </Card>
+
+        {needsSeat && (
+          <Card className="p-4">
+            <div className="text-[14px] font-semibold">Which seat is yours?</div>
+            <div className="text-[12px] text-sub mb-3">{firstName(h.name)} saved these for the group.</div>
+            <div className="grid grid-cols-2 gap-2">
+              {claimable.map((x) => {
+                const o = memberById(s, x.memberId)
+                const on = seatId === x.id
+                return (
+                  <button
+                    key={x.id}
+                    onClick={() => { setSeatId(x.id); if (!nameTouched) setName(o?.name ?? '') }}
+                    className={`h-12 px-3 rounded-lg border text-left flex items-center gap-2 ${on ? 'border-brand bg-[#fff5f7]' : 'border-line'}`}
+                    aria-pressed={on}
+                  >
+                    <span className={`w-9 h-7 rounded-md grid place-items-center text-[12px] font-semibold shrink-0 ${o ? 'bg-amber text-ink' : 'border border-dashed border-amber text-[#a86500]'}`}>{x.id}</span>
+                    <span className="text-[13px] truncate">{o ? firstName(o.name) : 'Open seat'}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+        {active && claimable.length === 0 && (
+          <Card className="p-4 text-[13px] text-sub">Every seat has been claimed. If one of them is yours, enter the same number you used before.</Card>
+        )}
+
+        <Card className="p-4 space-y-3">
+          <Field label="Your name" value={name} onChange={(e) => { setName(e.target.value); setNameTouched(true) }} autoComplete="name" />
+          <Field label="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="10-digit mobile number" />
+          <div className="text-[11px] text-sub">No account or password. Your number is only used to recognise you if you open the link again.</div>
         </Card>
       </div>
-      <div className="p-4">
-        {step === 'details' ? (
-          <div className="space-y-3">
-            <div className="text-[13px] font-medium">Confirm it's you. No account needed.</div>
-            <Field label="Your name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-            <Field label="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" />
-            <Button className="w-full" disabled={name.trim().length < 2 || normPhone(phone).length < 10} onClick={() => setStep('otp')}>Send code</Button>
+
+      <BottomBar>
+        {active ? (
+          <div className="grid gap-1">
+            <Button className="w-full" disabled={!valid || busy} onClick={() => join(true)}>
+              {s.variant === 'A' ? `Pay ${inr(price)}${seatId ? ` for ${seatId}` : ''}` : `Pay ${firstName(h.name)} back ${inr(price)}`}
+            </Button>
+            <button className="h-8 text-[12px] text-sub disabled:opacity-50" disabled={!valid || busy} onClick={() => join(false)}>Not now, just show me the group</button>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="text-[13px]">Enter the 4-digit code sent to {normPhone(phone)}. <span className="text-sub">(Simulated: any 4 digits work.)</span></div>
-            <input
-              autoFocus inputMode="numeric" maxLength={4} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              className="w-full h-12 text-center tracking-[0.6em] text-[22px] rounded-lg border border-line outline-none focus:border-ink" aria-label="One-time code"
-            />
-            <Button className="w-full" disabled={otp.length !== 4} onClick={verify}>Verify and continue</Button>
-            <button className="w-full text-[13px] text-sub" onClick={() => { setOtp(''); setStep('details') }}>Change number</button>
-          </div>
+          <Button className="w-full" disabled={!valid || busy} onClick={() => join(false)}>Continue</Button>
         )}
-      </div>
+      </BottomBar>
     </div>
   )
 }
@@ -229,6 +280,15 @@ function Live({ s, me }: { s: Session; me: Member }) {
     await act((d, n) => startCheckout(d, n, s.id, me.id))
     setPayOpen(true)
   }
+
+  // Coming straight from the invite's "Pay" button: open checkout immediately.
+  useEffect(() => {
+    const k = 'gb_autopay_' + s.id
+    if (sessionStorage.getItem(k) !== '1') return
+    sessionStorage.removeItem(k)
+    if (pay.ok && !me.isHost) openPay()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // E1/E4 resolution sheet
   if (me.isHost && s.status === 'expired' && s.variant === 'A' && !resolveDismissed) {

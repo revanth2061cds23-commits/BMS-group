@@ -91,7 +91,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [simOffline, setSimOfflineState] = useState(false)
   const [real, setReal] = useState(Date.now())
   const { path, nav } = usePath()
-  const [profile, setProfileState] = useState<Profile>(() => lsGet('gb_profile', DEFAULT_PROFILE))
+  const [profile, setProfileState] = useState<Profile>(() => {
+    const p = lsGet<Profile | null>('gb_profile', null)
+    // Older builds shared one placeholder number on every device: give this device its own.
+    if (p && !(p.name === DEFAULT_PROFILE.name && p.phone === DEFAULT_PROFILE.phone)) return p
+    const fresh = { name: DEFAULT_PROFILE.name, phone: '98765' + String(Math.floor(10000 + Math.random() * 89999)) }
+    lsSet('gb_profile', fresh)
+    return fresh
+  })
   const [draft, setDraftState] = useState<Draft>(() => {
     try { return JSON.parse(sessionStorage.getItem('gb_draft') || '') as Draft } catch { return emptyDraft() }
   })
