@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { useStore, emptyDraft } from '../store'
 import { BottomBar, BrandBar, Button, Card, Divider, Field, Header, Sheet, Avatar } from '../components/ui'
@@ -34,12 +34,15 @@ export function ShowSummary() {
   const show = db.show
   const active = activeSessionForHost(db, profile.phone)
   const invited = Object.values(db.sessions).filter((s) => isActive(s) && identity(s.id) && s.id !== active?.id)
-  const groupOk = holdMinutesFor(db, now) !== null
   const minsToShow = Math.round((show.startsAt - now) / 60000)
 
   return (
     <div>
-      <BrandBar />
+      <BrandBar right={
+        <button onClick={() => setEdit(true)} aria-label={`Your profile: ${profile.name}`} className="rounded-full active:opacity-80" onPointerDown={(e) => e.stopPropagation()}>
+          <Avatar name={profile.name} initials={initials(profile.name)} size={36} />
+        </button>
+      } />
       <div className="sect p-4 flex gap-4">
         <Poster />
         <div className="min-w-0">
@@ -67,29 +70,6 @@ export function ShowSummary() {
         </button>
       ))}
       <div className="p-4 space-y-3">
-        <Card className="p-3 flex items-center gap-3">
-          <Avatar name={profile.name} initials={initials(profile.name)} />
-          <div className="flex-1 min-w-0">
-            <div className="text-[12px] text-sub">Booking as</div>
-            <div className="text-[14px] font-medium truncate">{profile.name} · {profile.phone}</div>
-          </div>
-          <button className="text-brand text-[13px] font-medium" onClick={() => setEdit(true)}>Edit</button>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-brand-soft grid place-items-center text-brand shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="8" r="3.5" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M15 14.6c2.8-.3 5 1.3 6 4.4" /></svg>
-            </div>
-            <div className="text-[13px]">
-              <div className="font-semibold">New: Book with friends</div>
-              <div className="text-sub">
-                {groupOk
-                  ? 'Pick seats for up to 10 friends, share one link, and track who has paid in one place. No extra fee.'
-                  : 'Group booking closes 40 minutes before the show. You can still book for yourself.'}
-              </div>
-            </div>
-          </div>
-        </Card>
         <button onClick={() => nav('/history')} className="w-full text-left">
           <Card className="p-3 flex items-center justify-between">
             <div>
@@ -103,7 +83,7 @@ export function ShowSummary() {
       <BottomBar>
         <Button className="w-full" onClick={() => nav('/seats')}>Select seats</Button>
       </BottomBar>
-      <Sheet open={edit} onClose={() => setEdit(false)} title="Your details">
+      <Sheet open={edit} onClose={() => setEdit(false)} title="Your profile">
         <p className="text-[12px] text-sub mb-3">Testers: use your own name and number so friends' links match you correctly.</p>
         <div className="space-y-3">
           <Field label="Name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -122,10 +102,10 @@ export function SeatSelect() {
   const [group, setGroup] = useState(draft.seats.length > 0)
   const [hintHidden, setHintHidden] = useState(false)
   const [soloPay, setSoloPay] = useState(false)
+  const [whoPays, setWhoPays] = useState(false)
   const sold = useMemo(() => soldSet(db), [db])
   const sel = draft.seats
   const max = MAX_SEATS
-  const variant = db.config.variant
   const hold = holdMinutesFor(db, now)
 
   // E18: a seat in my selection was taken by someone else
@@ -200,6 +180,13 @@ export function SeatSelect() {
       })
       return // the effect above shows the message and refreshes the selection
     }
+    setWhoPays(true)
+  }
+
+  const choosePayer = (v: 'A' | 'B') => {
+    setDraft({ ...draft, variant: v })
+    act((d, n) => { log(d, n, null, profile.name, 'payment_mode_chosen', { variant: v, seats: sel.length }) })
+    setWhoPays(false)
     nav('/members')
   }
 
@@ -207,7 +194,7 @@ export function SeatSelect() {
     <div className="bg-white min-h-dvh">
       <Header title={db.show.movie} sub={`${db.show.cinema} · ${fmtTime(db.show.startsAt)}`} onBack={() => nav('/')} />
       <div className="px-3 pt-3">
-        <GroupToggle on={group} disabled={hold === null} variant={variant} onToggle={toggleGroup} />
+        <GroupToggle on={group} disabled={hold === null} onToggle={toggleGroup} />
       </div>
       <div className="py-4 px-2">
         <SeatMap look={look} onTap={tap} price={db.show.pricePerSeat} />
@@ -217,7 +204,7 @@ export function SeatSelect() {
       {!group && sel.length >= 2 && !hintHidden && hold !== null && (
         <div className="mx-3 mt-3 rounded-2xl bg-brand-soft p-3 flex items-center gap-3 anim-fade">
           <div className="flex-1 text-[12px] leading-snug">
-            <span className="font-semibold">Booking for friends?</span> Turn on <span className="font-semibold">Book with friends</span> so {variant === 'A' ? 'each of them pays for their own seat' : 'they can pay you back in the app'}.
+            <span className="font-semibold">Booking for friends?</span> Turn on <span className="font-semibold">Book with friends</span> so the whole group can book together.
           </div>
           <button className="h-8 px-3 rounded-full bg-brand text-white text-[12px] font-semibold shrink-0" onClick={toggleGroup}>Turn on</button>
           <button className="w-7 h-7 rounded-full text-sub grid place-items-center shrink-0" aria-label="Dismiss" onClick={() => setHintHidden(true)}>✕</button>
@@ -236,11 +223,30 @@ export function SeatSelect() {
         open={soloPay} amount={sel.length * db.show.pricePerSeat} title="Pay for your tickets" onClose={() => setSoloPay(false)} onResult={soloResult}
         lines={[[`${sel.length} seat${sel.length === 1 ? '' : 's'} · ${sel.join(', ')}`, inr(sel.length * db.show.pricePerSeat)], ['Booking for', 'Just you (regular booking)']]}
       />
+      <Sheet open={whoPays} onClose={() => setWhoPays(false)} title="Who’s paying?">
+        <p className="text-[13px] text-sub -mt-1 mb-4">{sel.length} seats · {inr(sel.length * db.show.pricePerSeat)} in total. No extra fee either way.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <PayerCard
+            title="I’ll pay for everyone"
+            sub="Friends pay you back through the link"
+            note={`You pay ${inr(sel.length * db.show.pricePerSeat)}`}
+            onClick={() => choosePayer('B')}
+            icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="3" /><path d="M2.5 10.5h19M16.5 15h2" /><path d="M6 6V5a2 2 0 012-2h8" /></svg>}
+          />
+          <PayerCard
+            title="Everyone pays their share"
+            sub="Tickets confirm as each friend pays"
+            note={`You pay ${inr(db.show.pricePerSeat)}`}
+            onClick={() => choosePayer('A')}
+            icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="3" /><circle cx="16.5" cy="8" r="3" /><path d="M2.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5M11.5 19c.6-3 2.4-5 5-5s4.4 2 5 5" /></svg>}
+          />
+        </div>
+      </Sheet>
     </div>
   )
 }
 
-function GroupToggle({ on, disabled, variant, onToggle }: { on: boolean; disabled: boolean; variant: 'A' | 'B'; onToggle(): void }) {
+function GroupToggle({ on, disabled, onToggle }: { on: boolean; disabled: boolean; onToggle(): void }) {
   return (
     <button
       onClick={onToggle} role="switch" aria-checked={on}
@@ -262,13 +268,24 @@ function GroupToggle({ on, disabled, variant, onToggle }: { on: boolean; disable
           <div className={`text-[12px] leading-snug mt-0.5 ${on ? 'text-white/90' : 'text-sub'}`}>
             {disabled
               ? 'Unavailable: the show starts too soon'
-              : variant === 'A' ? 'Hold seats for the group. Everyone pays for their own seat. No extra fee.' : 'Pay for everyone now. Friends pay you back in the app. No extra fee.'}
+              : 'Book seats for your group and share one link. No extra fee.'}
           </div>
         </div>
         <span className={`w-12 h-7 rounded-full relative transition shrink-0 ${on ? 'bg-white' : 'bg-[#D5D7E1]'}`}>
           <span className={`absolute top-1 w-5 h-5 rounded-full transition-all shadow ${on ? 'left-6 bg-brand' : 'left-1 bg-white'}`} />
         </span>
       </div>
+    </button>
+  )
+}
+
+function PayerCard({ title, sub, note, icon, onClick }: { title: string; sub: string; note: string; icon: ReactNode; onClick(): void }) {
+  return (
+    <button onClick={onClick} className="aspect-square rounded-3xl border-[1.5px] border-line bg-white p-4 flex flex-col text-left active:border-brand active:bg-brand-soft transition">
+      <span className="w-12 h-12 rounded-2xl bg-brand-soft text-brand grid place-items-center">{icon}</span>
+      <span className="mt-auto text-[15px] font-semibold leading-tight text-ink">{title}</span>
+      <span className="mt-1 text-[12px] leading-snug text-sub">{sub}</span>
+      <span className="mt-2 text-[12px] font-semibold text-brand">{note}</span>
     </button>
   )
 }
@@ -502,7 +519,7 @@ export function Review() {
   const [pay, setPay] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
   useEffect(() => { if (draft.seats.length < 2) nav('/seats', true) }, [draft.seats.length, nav])
-  const variant = db.config.variant
+  const variant = draft.variant ?? db.config.variant
   const price = db.show.pricePerSeat
   const hostSeat = draft.hostSeat ?? draft.seats[0]
   const total = draft.seats.length * price
@@ -512,7 +529,7 @@ export function Review() {
 
   const onResult = async (ok: boolean) => {
     let res: CreateResult = { ok: false }
-    await act((d, n) => { res = createSession(d, n, profile, draft, d.config.variant, ok); return true })
+    await act((d, n) => { res = createSession(d, n, profile, draft, draft.variant ?? d.config.variant, ok); return true })
     setPay(false)
     if (res.ok && res.sessionId) {
       const s = res.sessionId

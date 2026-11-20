@@ -104,7 +104,7 @@ export function Facilitator() {
           {tab === 'controls' && (
             <>
               <Section title="Next new session">
-                <Row label="Variant">
+                <Row label="Fallback variant (the host now chooses in the app)">
                   <Seg value={db.config.variant} options={[['A', 'A · own share'], ['B', 'B · host upfront']]} onChange={(v) => act((d, n) => { d.config.variant = v as 'A' | 'B'; log(d, n, null, 'facilitator', 'variant_set', { variant: v }) })} />
                 </Row>
                 <Row label={`Hold length: ${db.config.holdMinutes} min`}>

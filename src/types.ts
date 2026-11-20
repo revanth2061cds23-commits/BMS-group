@@ -137,6 +137,8 @@ export interface Draft {
   groupName?: string
   /** People to auto-assign once seats are picked (Book again) */
   prefill?: SavedContact[]
+  /** Who pays, chosen by the host in the "Who's paying?" sheet: A = everyone pays their share, B = host pays for everyone */
+  variant?: Variant
 }
 
 export interface Profile {

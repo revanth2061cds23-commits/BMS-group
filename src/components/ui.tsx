@@ -38,7 +38,7 @@ export function Header({ title, sub, onBack, right }: { title: string; sub?: str
   )
 }
 
-export function BrandBar() {
+export function BrandBar({ right }: { right?: ReactNode }) {
   const { setFacOpen } = useStore()
   const timer = useRef<number | null>(null)
   return (
@@ -54,7 +54,7 @@ export function BrandBar() {
         </span>
         <span className="font-semibold text-[16px]">Movie tickets</span>
       </div>
-      <div className="text-[11px] text-sub bg-surface rounded-full px-2.5 py-1">Prototype</div>
+      {right}
     </div>
   )
 }
