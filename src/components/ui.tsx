@@ -107,7 +107,8 @@ export function Pill({ kind, label }: { kind: SeatDisplay; label?: string }) {
 export function TimerBar({ s }: { s: Session }) {
   const { now } = useStore()
   const left = s.expiresAt - now
-  if (s.status !== 'live') return null
+  // Host-pays mode holds nothing, so there is nothing to count down.
+  if (s.status !== 'live' || s.variant === 'B') return null
   const tone = left <= 3 * 60000 ? 'bg-err text-white' : left <= 10 * 60000 ? 'bg-amber-soft text-amber-ink' : 'bg-white text-ink'
   const label = s.variant === 'A' ? 'Seats held for' : 'Time to pay back'
   return (

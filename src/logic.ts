@@ -167,7 +167,7 @@ export function createSession(db: DB, now: number, profile: Profile, draft: Draf
 
   const s: Session = {
     id: sid, variant, show: { ...db.show }, hostId: hostM.id, hostPhone: hostM.phone, seats, members,
-    holdMinutes: hold, startedAt: now, expiresAt: now + hold * MIN, expiredAt: null, extensionUsed: false,
+    holdMinutes: hold, startedAt: now, expiresAt: variant === 'B' ? db.show.startsAt : now + hold * MIN, expiredAt: null, extensionUsed: false,
     extensionAllowed: db.config.extensionAllowed, status: 'live', createdAt: now, endedAt: null,
     autoReminders: { half: false, five: false }, moveRequests: [], notices: [], showCancelled: false, autoReleased: false,
   }
@@ -573,7 +573,7 @@ function tickSession(db: DB, s: Session, now: number, dry: boolean): boolean {
     if (!s.autoReminders.half && now >= half && now < s.expiresAt) {
       if (dry) return true
       s.autoReminders.half = true
-      pending.forEach((m) => { m.remindersSent++; notify(s, now, m.id, `Reminder: half the time is gone. Pay ${inr(s.show.pricePerSeat)} to keep ${seatOf(s, m.id)?.id}.`, 'warn') })
+      pending.forEach((m) => { m.remindersSent++; notify(s, now, m.id, s.variant === 'A' ? `Reminder: half the time is gone. Pay ${inr(s.show.pricePerSeat)} to keep ${seatOf(s, m.id)?.id}.` : `Reminder: pay ${firstName(host(s).name)} back ${inr(s.show.pricePerSeat)}.`, 'warn') })
       if (pending.length) notify(s, now, 'host', `Halfway reminder sent to ${pending.map((m) => firstName(m.name)).join(', ')}.`)
       log(db, now, s, 'system', 'reminder_auto', { at: 'half', members: pending.map((m) => m.id) })
       return true
@@ -582,7 +582,7 @@ function tickSession(db: DB, s: Session, now: number, dry: boolean): boolean {
       if (dry) return true
       s.autoReminders.five = true
       s.autoReminders.half = true
-      pending.forEach((m) => { m.remindersSent++; notify(s, now, m.id, `5 minutes left to pay for ${seatOf(s, m.id)?.id}.`, 'error') })
+      pending.forEach((m) => { m.remindersSent++; notify(s, now, m.id, s.variant === 'A' ? `5 minutes left to pay for ${seatOf(s, m.id)?.id}.` : `The show starts soon. Pay ${firstName(host(s).name)} back ${inr(s.show.pricePerSeat)}.`, 'error') })
       if (pending.length) notify(s, now, 'host', `5-minute reminder sent to ${pending.map((m) => firstName(m.name)).join(', ')}.`)
       log(db, now, s, 'system', 'reminder_auto', { at: 'five', members: pending.map((m) => m.id) })
       return true

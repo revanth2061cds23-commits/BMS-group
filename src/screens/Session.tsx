@@ -638,7 +638,7 @@ export function InviteCard({ s }: { s: Session }) {
           </div>
           <div className="text-[12px] font-semibold text-brand flex items-center gap-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2" /></svg>
-            {s.variant === 'A' ? `Held for ${s.holdMinutes} min` : `Within ${s.holdMinutes} min`}
+            {s.variant === 'A' ? `Held for ${s.holdMinutes} min` : 'Seat already booked'}
           </div>
         </div>
       </div>
@@ -841,7 +841,7 @@ function Resolution({ s, onClose }: { s: Session; onClose(): void }) {
 /* ---------------- 11. Outcome ---------------- */
 
 function Outcome({ s, me, saveOpen, setSaveOpen }: { s: Session; me: Member; onSave(): void; saveOpen: boolean; setSaveOpen(v: boolean): void }) {
-  const { nav, act, now, toast, setDraft } = useStore()
+  const { nav, act, now, toast, db } = useStore()
   const h = host(s)
   const mySeat = seatOf(s, me.id)
   const owing = owingMembers(s)
@@ -853,6 +853,10 @@ function Outcome({ s, me, saveOpen, setSaveOpen }: { s: Session; me: Member; onS
   const myD = mySeat ? seatDisplay(s, mySeat) : null
   const iCanPay = !me.isHost && s.variant === 'B' && s.status === 'settled' && mySeat && me.status !== 'paid'
   const [payOpen, setPayOpen] = useState(false)
+  const friends = s.members.filter((m) => !m.isHost && seatOf(s, m.id))
+  const friendPhones = friends.map((m) => m.phone)
+  const savedAs = db.groups.find((g) => friendPhones.length > 0 && friendPhones.every((p) => g.members.some((x) => normPhone(x.phone) === p)))?.name
+  const friendNames = friends.length <= 2 ? friends.map((m) => firstName(m.name)).join(' and ') : `${friends.slice(0, -1).map((m) => firstName(m.name)).join(', ')} and ${firstName(friends[friends.length - 1].name)}`
 
   const subtitle = (() => {
     if (s.showCancelled) return 'The cinema cancelled this show. Everyone who paid is refunded automatically.'
@@ -902,18 +906,28 @@ function Outcome({ s, me, saveOpen, setSaveOpen }: { s: Session; me: Member; onS
           )
         })}
       </div>
-      <div className="p-4 grid gap-2">
-        {!cancelled && mySeat && (myD === 'paid' || myD === 'covered') && <Button onClick={() => nav(`/s/${s.id}/ticket`)}>{s.variant === 'A' ? 'View my ticket' : me.isHost ? 'View booking' : 'View receipt'}</Button>}
-        {iCanPay && <Button onClick={() => setPayOpen(true)}>Pay {firstName(h.name)} back {inr(s.show.pricePerSeat)}</Button>}
-        {me.isHost && !cancelled && <Button variant="outline" onClick={() => setSaveOpen(true)}>Save this group</Button>}
-        {me.isHost && (
-          <Button variant="outline" onClick={() => {
-            setDraft({ seats: [], assign: {}, hostSeat: null, prefill: s.members.filter((m) => !m.isHost && seatOf(s, m.id)).map((m) => ({ name: m.name, phone: m.phone })) })
-            nav('/seats')
-          }}>Book again with this group</Button>
+      {me.isHost && !cancelled && friends.length > 0 && (
+        <div className="sect p-4 flex items-center gap-3">
+          <div className="flex -space-x-2 shrink-0">{friends.slice(0, 3).map((m) => <Avatar key={m.id} name={m.name} initials={m.initials} size={32} ring="#fff" />)}</div>
+          {savedAs ? (
+            <div className="flex-1 text-[13px]"><span className="font-semibold">Saved as {savedAs}</span> <span className="text-ok">✓</span><div className="text-[12px] text-sub">Book with them again from Group bookings.</div></div>
+          ) : (
+            <>
+              <div className="flex-1 min-w-0 text-[13px] leading-snug">Save {friendNames} as a group?<div className="text-[12px] text-sub">Add them in one tap next time.</div></div>
+              <button className="h-9 px-4 rounded-full bg-brand-soft text-brand text-[13px] font-semibold shrink-0" onClick={() => setSaveOpen(true)}>Save</button>
+            </>
+          )}
+        </div>
+      )}
+      <BottomBar>
+        {iCanPay ? (
+          <Button className="w-full" onClick={() => setPayOpen(true)}>Pay {firstName(h.name)} back {inr(s.show.pricePerSeat)}</Button>
+        ) : !cancelled && mySeat && (myD === 'paid' || myD === 'covered') ? (
+          <Button className="w-full" onClick={() => nav(`/s/${s.id}/ticket`)}>{s.variant === 'A' ? 'View my ticket' : me.isHost ? 'View booking' : 'View receipt'}</Button>
+        ) : (
+          <Button className="w-full" onClick={() => nav('/')}>Done</Button>
         )}
-        <Button variant="ghost" onClick={() => nav(me.isHost ? '/history' : '/')}>{me.isHost ? 'Group history' : 'Done'}</Button>
-      </div>
+      </BottomBar>
       <SaveGroupSheet open={saveOpen} onClose={() => setSaveOpen(false)} s={s} />
       <PaySheet open={payOpen} amount={s.show.pricePerSeat} title={`Pay ${firstName(h.name)} back`} onClose={() => setPayOpen(false)}
         onResult={async (ok) => {

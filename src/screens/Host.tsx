@@ -602,7 +602,7 @@ export function Review() {
           <div className="text-[15px] font-bold">How it works</div>
           <div className="h-8 px-3 rounded-full bg-amber-soft text-amber-ink text-[12px] font-bold flex items-center gap-1.5">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg>
-            {hold ?? '—'}:00 {variant === 'A' ? 'hold' : 'to pay back'}
+            {variant === 'A' ? `${hold ?? '—'}:00 hold` : 'No timer'}
           </div>
         </div>
         <ol className="relative">
@@ -614,7 +614,7 @@ export function Review() {
               ]
             : [
                 ['card', `You pay ${inr(amount)}`, 'Every seat is confirmed now'],
-                ['people', 'Friends pay you back', `Within ${hold} min, in the app`],
+                ['people', 'Friends pay you back', 'Any time before the show'],
                 ['bell', 'See who still owes', 'Send reminders any time'],
               ]
           ).map(([icon, title, sub], i, arr) => (
